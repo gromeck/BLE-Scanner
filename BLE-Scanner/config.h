@@ -1,0 +1,104 @@
+/*
+  BLE-Scanner
+
+  (c) 2020 Christian.Lorenz@gromeck.de
+
+  module to handle the configuration
+
+
+  This file is part of BLE-Scanner.
+
+  BLE-Scanner is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  BLE-Scanner is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with BLE-Scanner.  If not, see <https://www.gnu.org/licenses/>.
+
+*/
+
+#ifndef __CONFIG_H__
+#define __CONFIG_H__ 1
+
+#define __TITLE__   "BLE-Scanner"
+
+#define DBG   1
+
+/*
+ * if true, we are in config mode, which means that
+ * NTP, MQTT, BLE are disabled
+ */
+extern bool _config_mode;
+
+
+#define CONFIG_MAGIC      __TITLE__ "-CONFIG"
+#define CONFIG_VERSION    1
+
+typedef struct _config_wifi {
+  char ssid[64];
+  char psk[64];
+} CONFIG_WIFI;
+
+typedef struct _config_ntp {
+  char server[64];
+} CONFIG_NTP;
+
+typedef struct _config_mqtt {
+  char server[64];
+  int port;
+  char user[64];
+  char password[64];
+  char clientID[64];
+} CONFIG_MQTT;
+
+typedef struct _config_http {
+  char password[64];
+} CONFIG_HTTP;
+
+typedef struct _config_ble {
+  int scan_time;
+  int pause_time;
+} CONFIG_BLE;
+
+/*
+   the configuration layout
+*/
+typedef struct _config {
+  char magic[sizeof(CONFIG_MAGIC) + 1];
+  int version;
+  CONFIG_WIFI wifi;
+  CONFIG_NTP ntp;
+  CONFIG_MQTT mqtt;
+  CONFIG_HTTP http;
+  CONFIG_BLE ble;
+} CONFIG;
+
+/*
+    setup the configuration
+*/
+void ConfigSetup(void);
+
+/*
+   cyclic update of the configuration
+*/
+void ConfigUpdate(void);
+
+/*
+ * functions to get the configuration for a subsystem
+ */
+#define CONFIG_GET(type,name,cfg)  ConfigGet(offsetof(CONFIG,name),sizeof(CONFIG_ ## type),(void *) (cfg))
+void ConfigGet(int offset,int size,void *cfg);
+
+/*
+ * functions to set the configuration for a subsystem -- will be written to the EEPROM
+ */
+#define CONFIG_SET(type,name,cfg)  ConfigSet(offsetof(CONFIG,name),sizeof(type),(void *) (cfg))
+void ConfigSet(int offset,int size,void *cfg);
+
+#endif
