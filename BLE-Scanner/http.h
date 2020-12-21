@@ -29,9 +29,10 @@
 #include "config.h"
 #include "util.h"
 
-#define HTTP_GET_VAR_WIFI_SSID      "wifissid"
-#define HTTP_GET_VAR_WIFI_PSK       "wifipsk"
-#define HTTP_GET_VAR_NTP_SERVER     "ntpserver"
+/*
+ * user for the Basic Auth
+ */
+#define HTTP_WEB_USER   "admin"
 
 /*
 **  setup the HTTP web server:w

@@ -34,17 +34,31 @@
 static BLEScan *_BleScan = NULL;
 
 /*
+ * the last scan list as HTML
+ */
+static String _BleScanListHtml = "no scan so far";
+
+/*
    Callback invoked when scanning has completed.
 */
 static void BleScanComplete(BLEScanResults scanResults)
 {
   time_t t = now();
+  char time_buffer[25];
 
   LogMsg("BLE: finished scan -- Found %d device", scanResults.getCount());
 
   LogMsg("BLE: %-17.17s  %4.4s  %s", "MAC", "RSSI", "Name");
   LogMsg("BLE: ---------------------------------------------");
 
+  strftime(time_buffer,sizeof(time_buffer),"%H:%M:%S  %D-%m-%Y",localtime(&t));
+  _BleScanListHtml = "BLE Scan List: " + String(time_buffer) + "<p>";
+  _BleScanListHtml += "<table class='blescanlist'>"
+          "<tr>"
+          "<th>MAC</th>"
+          "<th>RSSI</th>"
+          "<th>Name</th>"
+          "</tr>";
   for (int i = 0; i < scanResults.getCount(); i++) {
     /*
        loop over the result list
@@ -59,15 +73,25 @@ static void BleScanComplete(BLEScanResults scanResults)
     /*
       publish the result
     */
-    String suffix = String(device.getAddress().toString().c_str());
-    suffix.toUpperCase();
+    String mac = String(device.getAddress().toString().c_str());
+    mac.toUpperCase();
 
-    MqttPublish(suffix + "/last_seen", String(t));
+    MqttPublish(mac + "/last_seen", String(t));
     if (device.haveRSSI())
-      MqttPublish(suffix + "/rssi", String(device.getRSSI()));
+      MqttPublish(mac + "/rssi", String(device.getRSSI()));
     if (device.haveName())
-      MqttPublish(suffix + "/name", String(device.getName().c_str()));
+      MqttPublish(mac + "/name", String(device.getName().c_str()));
+
+    /*
+       setup the list as HTML
+    */
+    _BleScanListHtml += "<tr>"
+          "<td>" + mac + "</td>"
+          "<td>" + String(device.getRSSI()) + "</td>"
+          "<td>" + String(device.getName().c_str()) + "</td>"
+          "</tr>";
   }
+  _BleScanListHtml += "</table>";
 
   /*
      trigger the state machine
@@ -108,4 +132,12 @@ void BleStartScan(void)
   */
   LogMsg("BLE: starting scan");
   _BleScan->start(BLE_SCAN_TIME, BleScanComplete, false);
+}
+
+/*
+ * return the last BLE scan list as HTML
+ */
+String BleScanListHTML(void)
+{
+  return _BleScanListHtml;
 }/**/

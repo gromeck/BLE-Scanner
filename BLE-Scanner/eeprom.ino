@@ -98,4 +98,7 @@ void EepromWrite(const int addr, const int len, const void *buffer)
     //LogMsg("EEPROM.write: addr[%d] = %u",addr + n,((byte *) buffer)[n]);
   }
   EEPROM.commit();
+  if (DBG)
+    EepromDump();
+
 }/**/

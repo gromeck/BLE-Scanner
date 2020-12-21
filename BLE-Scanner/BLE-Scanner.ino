@@ -43,13 +43,24 @@ void setup()
   Serial.println();
 
   /*
-     initialize the sub-systems
+     initialize the basic sub-systems
   */
   LogMsg("*** " __TITLE__ " - Version " GIT_VERSION " ***");
-  StateSetup(STATE_PAUSING);
   LedSetup(LED_MODE_ON);
   ConfigSetup();
-  WifiSetup();
+  if (!WifiSetup()) {
+    /*
+     * something wen't wrong -- enter configuration mode
+     */
+    LogMsg("SETUP: no WIFI connection -- entering configuration mode");
+    _config_mode = true;
+    WifiSetup();
+  }
+
+  /*
+   * setup the other sub-systems
+   */
+  StateSetup((_config_mode) ? STATE_CONFIGURING : STATE_PAUSING);
   NtpSetup();
   HttpSetup();
   MqttSetup();
@@ -90,7 +101,7 @@ void loop()
       /*
          we are now pausing
       */
-      LedSetup(LED_MODE_OFF);
+      LedSetup(LED_MODE_BLINK_NORMAL);
       break;
 
   }

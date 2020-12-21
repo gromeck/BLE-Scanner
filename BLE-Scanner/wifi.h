@@ -49,12 +49,12 @@ extern WiFiClient _wifiClient;
 /*
    setup wifi
 */
-void WifiSetup(void);
+bool WifiSetup(void);
 
 /*
    do Wifi updates
 */
-void WifiUpdate(void);
+bool WifiUpdate(void);
 
 /*
    return the SSID

@@ -26,17 +26,15 @@
 #include "config.h"
 #include "wifi.h"
 
-static CONFIG_WIFI _config_wifi;
 WiFiClient _wifiClient;
 static DNSServer *_dns_server = NULL;
+static char _config_mode_SSID[64] = "";
 
 /*
    setup wifi
 */
-void WifiSetup(void)
+bool WifiSetup(void)
 {
-  CONFIG_GET(WIFI, wifi, &_config_wifi);
-
   LogMsg("WIFI: my MAC address is %s", WifiGetMacAddr().c_str());
 
   if (_config_mode) {
@@ -44,10 +42,10 @@ void WifiSetup(void)
        open an AccessPoint
     */
     uint8_t mac[6];
-    String SSID = String(__TITLE__ "-AP-") + String(AddressToString((byte *) WiFi.macAddress(mac) + sizeof(mac) - WIFI_AP_USE_LAST_MAC_DIGITS, WIFI_AP_USE_LAST_MAC_DIGITS, false));
+    strcpy(_config_mode_SSID,(String(__TITLE__ "-AP-") + String(AddressToString((byte *) WiFi.macAddress(mac) + sizeof(mac) - WIFI_AP_USE_LAST_MAC_DIGITS, WIFI_AP_USE_LAST_MAC_DIGITS, false))).c_str());
 
-    LogMsg("WIFI: opening access point with SSID %s ...", SSID.c_str());
-    WiFi.softAP(SSID.c_str());
+    LogMsg("WIFI: opening access point with SSID %s ...", _config_mode_SSID);
+    WiFi.softAP(_config_mode_SSID);
     delay(1000);
 
     LogMsg("WIFI: local IP address %s", IPAddressToString(WiFi.softAPIP()).c_str());
@@ -63,21 +61,21 @@ void WifiSetup(void)
     /*
       connect to the configured Wifi network
     */
-    DbgMsg("WIFI: SSID=%s  PSK=%s", _config_wifi.ssid, _config_wifi.psk);
+    DbgMsg("WIFI: SSID=%s  PSK=%s", _config.wifi.ssid, _config.wifi.psk);
 
     WiFi.mode(WIFI_STA);
-    WiFi.begin(_config_wifi.ssid, _config_wifi.psk);
+    WiFi.begin(_config.wifi.ssid, _config.wifi.psk);
 
     LogMsg("WIFI: waiting to connect to %s ...", WiFi.SSID().c_str());
   }
 
-  WifiUpdate();
+  return WifiUpdate();
 }
 
 /*
    do Wifi updates
 */
-void WifiUpdate(void)
+bool WifiUpdate(void)
 {
   if (_config_mode) {
     /*
@@ -96,18 +94,25 @@ void WifiUpdate(void)
       /*
          wait to connect
       */
+      int retries = 20;
+
       DbgMsg("WIFI: status is not connected ... waiting for connection");
       while (WiFi.status() != WL_CONNECTED) {
-        delay(500);
+        delay(1000);
+        if (--retries <= 0) {
+          LogMsg("WIFI: giving up");
+          return false;
+        }
       }
 
       /*
          up an running
       */
       IPAddress ip = WiFi.localIP();
-      LogMsg("WIFI: connected to %s with local IP address %s", _config_wifi.ssid, IPAddressToString(ip).c_str());
+      LogMsg("WIFI: connected to %s with local IP address %s", _config.wifi.ssid, IPAddressToString(ip).c_str());
     }
   }
+  return true;
 }
 
 /*
@@ -115,7 +120,7 @@ void WifiUpdate(void)
 */
 String WifiGetSSID(void)
 {
-  return WiFi.SSID();
+  return _config_mode ? _config_mode_SSID : WiFi.SSID();
 }
 
 /*
@@ -132,7 +137,7 @@ int WifiGetRSSI(void)
 */
 String WifiGetIpAddr(void)
 {
-  return IPAddressToString(_config_mode ? WiFi.localIP() : WiFi.softAPIP());
+  return IPAddressToString(_config_mode ? WiFi.softAPIP() : WiFi.localIP());
 }
 
 /*

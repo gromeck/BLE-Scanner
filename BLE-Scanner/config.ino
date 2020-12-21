@@ -29,7 +29,7 @@
 #include "eeprom.h"
 
 bool _config_mode = false;
-static CONFIG _config;
+CONFIG _config;
 
 /*
     setup the configuration
@@ -43,9 +43,6 @@ void ConfigSetup(void)
   EepromInit(sizeof(CONFIG));
   EepromRead(0,sizeof(CONFIG),&_config);
 
-  if (DBG)
-    dump("CFG:",&_config,sizeof(CONFIG));
-
   /*
    * check if the config version is ok
    */
@@ -58,8 +55,10 @@ void ConfigSetup(void)
     strcpy(_config.magic,CONFIG_MAGIC);
     _config.version = CONFIG_VERSION;  
     _config_mode = true;
-    StateChange(STATE_CONFIGURING);
   }
+
+  if (DBG)
+    dump("CFG:",&_config,sizeof(CONFIG));
 }
 
 /*
@@ -76,7 +75,12 @@ void ConfigUpdate(void)
  */
 void ConfigGet(int offset,int size,void *cfg)
 {
-  memcpy(cfg,&_config + offset,size);
+  DbgMsg("CFG: getting config: offset:%d  size:%d  cfg:%p",offset,size,cfg);
+  
+  memcpy(cfg,(byte *) &_config + offset,size);
+
+  if (DBG)
+    dump("CFG:",cfg,size);
 }
 
 /*
@@ -84,6 +88,13 @@ void ConfigGet(int offset,int size,void *cfg)
  */
 void ConfigSet(int offset,int size,void *cfg)
 {
-  memcpy(&_config + offset,cfg,size);
-  EepromWrite(offset,size,&_config + offset);
+  DbgMsg("CFG: setting config: offset:%d  size:%d  cfg:%p",offset,size,cfg);
+  
+  memcpy((byte *) &_config + offset,cfg,size);
+
+  if (DBG)
+    dump("CFG:",cfg,size);
+
+  
+  EepromWrite(offset,size,(byte *) &_config + offset);
 }/**/

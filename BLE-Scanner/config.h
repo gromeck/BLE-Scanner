@@ -38,7 +38,13 @@ extern bool _config_mode;
 
 
 #define CONFIG_MAGIC      __TITLE__ "-CONFIG"
-#define CONFIG_VERSION    1
+#define CONFIG_VERSION    2
+
+typedef struct _config_device {
+  char name[64];
+  char password[64];
+  char reserved[256];
+} CONFIG_DEVICE;
 
 typedef struct _config_wifi {
   char ssid[64];
@@ -55,15 +61,13 @@ typedef struct _config_mqtt {
   char user[64];
   char password[64];
   char clientID[64];
+  char reserved[256];
 } CONFIG_MQTT;
-
-typedef struct _config_http {
-  char password[64];
-} CONFIG_HTTP;
 
 typedef struct _config_ble {
   int scan_time;
   int pause_time;
+  char reserverd[256];
 } CONFIG_BLE;
 
 /*
@@ -72,12 +76,17 @@ typedef struct _config_ble {
 typedef struct _config {
   char magic[sizeof(CONFIG_MAGIC) + 1];
   int version;
+  CONFIG_DEVICE device;
   CONFIG_WIFI wifi;
   CONFIG_NTP ntp;
   CONFIG_MQTT mqtt;
-  CONFIG_HTTP http;
   CONFIG_BLE ble;
 } CONFIG;
+
+/*
+ * the config is global
+ */
+extern CONFIG _config;
 
 /*
     setup the configuration

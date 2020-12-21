@@ -70,6 +70,18 @@ static int _ntp_sync_cycle = 0;
 static WiFiUDP _Udp;
 
 /*
+ * initialize ntp
+ */
+static void NtpInit()
+{
+  if (_ntp_ip[0]) {
+    _Udp.begin(NTP_UDP_LOCAL_PORT);
+    setSyncInterval((unsigned int) NTP_SYNC_INTERVAL);
+    setSyncProvider(NtpSync);
+  }
+}
+
+/*
 **  send an NTP request to the time server at the given address
 **
 **  NOTE: function is called asynchronous, so don't use LogMsg or Serial!
@@ -148,10 +160,13 @@ void NtpSetup(void)
   if (_config_mode)
     return;
 
-  LogMsg("NTP: setting up NTP client");
-
-
   CONFIG_GET(NTP, ntp, &_config_ntp);
+  if (!_config_ntp.server[0]) {
+    LogMsg("NTP: no server configured");
+    return;
+  }
+
+  LogMsg("NTP: setting up NTP client");
 
   /*
      get the NTP from the configuration
@@ -167,17 +182,14 @@ void NtpSetup(void)
     */
     LogMsg("NTP: lookup of %s successful: %s", _config_ntp.server, IPAddressToString(_ntp_ip).c_str());
   }
+  else {
+    LogMsg("NTP: lookup of %s failed", _config_ntp.server);
+    return;
+  }
 
   LogMsg("NTP: ip=%s", IPAddressToString(_ntp_ip).c_str());
 
-  /*
-  **    init the UDP socket
-  */
-  if (_ntp_ip[0]) {
-    _Udp.begin(NTP_UDP_LOCAL_PORT);
-    setSyncInterval((unsigned int) NTP_SYNC_INTERVAL);
-    setSyncProvider(NtpSync);
-  }
+  NtpInit();
 }
 
 /*
@@ -190,6 +202,6 @@ void NtpUpdate(void)
 
   if (++_ntp_sync_cycle >= NTPSYNC_CYCLES && timeStatus() != timeSet) {
     _ntp_sync_cycle = 0;
-    NtpSetup();
+    NtpInit();
   }
 }/**/
