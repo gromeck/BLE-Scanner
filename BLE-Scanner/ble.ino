@@ -48,16 +48,17 @@ static void BleScanComplete(BLEScanResults scanResults)
 
   LogMsg("BLE: finished scan -- Found %d device", scanResults.getCount());
 
-  LogMsg("BLE: %-17.17s  %4.4s  %s", "MAC", "RSSI", "Name");
-  LogMsg("BLE: ---------------------------------------------");
+  LogMsg("BLE: %-17.17s  %4.4s  %-20.20s  %s", "MAC", "RSSI", "Name","Vendor");
+  LogMsg("BLE: ---------------------------------------------------------------------");
 
-  strftime(time_buffer,sizeof(time_buffer),"%H:%M:%S  %D-%m-%Y",localtime(&t));
+  strftime(time_buffer,sizeof(time_buffer),"%H:%M:%S  %d-%m-%Y",localtime(&t));
   _BleScanListHtml = "BLE Scan List: " + String(time_buffer) + "<p>";
   _BleScanListHtml += "<table class='blescanlist'>"
           "<tr>"
           "<th>MAC</th>"
           "<th>RSSI</th>"
           "<th>Name</th>"
+          "<th>Vendor</th>"
           "</tr>";
   for (int i = 0; i < scanResults.getCount(); i++) {
     /*
@@ -65,30 +66,37 @@ static void BleScanComplete(BLEScanResults scanResults)
     */
     BLEAdvertisedDevice device = scanResults.getDevice(i);
 
-    LogMsg("BLE: %-17.17s  %4.4s  %s",
-           device.getAddress().toString().c_str(),
+    /*
+     * lookup the vendor
+     */
+    String MAC = String(device.getAddress().toString().c_str());
+    MAC.toUpperCase();
+    const byte *macaddr = StringToAddress((const char *) MAC.c_str(),6,false);
+    const char *vendor = MacAddrLookup(macaddr);
+      
+    LogMsg("BLE: %-17.17s  %4.4s  %-20.20s  %s",
+           MAC.c_str(),
            device.haveRSSI() ? String(device.getRSSI()).c_str() : "-",
-           device.haveName() ? device.getName().c_str() : "-");
+           device.haveName() ? device.getName().c_str() : "-",
+           (vendor) ? vendor : "-");
 
     /*
       publish the result
     */
-    String mac = String(device.getAddress().toString().c_str());
-    mac.toUpperCase();
-
-    MqttPublish(mac + "/last_seen", String(t));
+    MqttPublish(MAC + "/last_seen", String(t));
     if (device.haveRSSI())
-      MqttPublish(mac + "/rssi", String(device.getRSSI()));
+      MqttPublish(MAC + "/rssi", String(device.getRSSI()));
     if (device.haveName())
-      MqttPublish(mac + "/name", String(device.getName().c_str()));
+      MqttPublish(MAC + "/name", String(device.getName().c_str()));
 
     /*
        setup the list as HTML
     */
     _BleScanListHtml += "<tr>"
-          "<td>" + mac + "</td>"
+          "<td>" + MAC + "</td>"
           "<td>" + String(device.getRSSI()) + "</td>"
           "<td>" + String(device.getName().c_str()) + "</td>"
+          "<td>" + String(vendor) + "</td>"
           "</tr>";
   }
   _BleScanListHtml += "</table>";
