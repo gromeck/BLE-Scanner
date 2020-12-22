@@ -69,6 +69,7 @@ void setup()
   NtpSetup();
   HttpSetup();
   MqttSetup();
+  BleSetup();
 
   delay(1000);
 }
@@ -93,7 +94,7 @@ void loop()
       /*
          start the scanner
       */
-      LedSetup(LED_MODE_ON);
+      LedSetup(LED_MODE_BLINK_SLOW);
       BleStartScan();
       break;
     case STATE_PAUSING:
@@ -107,11 +108,23 @@ void loop()
          time to configure the device
       */
       LedSetup(LED_MODE_BLINK_FAST);
+
+      /*
+         if there is no activity via HTTP, we will reboot
+
+         this is in case where the device has switched by its own
+         into the configuration mode.
+      */
+      if (HttpLastRequest() > STATE_CONFIGURING_TIMEOUT) {
+        LogMsg("LOOP: restarting hte device");
+        StateChange(STATE_REBOOT);
+      }
       break;
     case STATE_REBOOT:
       /*
          time to boot
       */
+      LogMsg("LOOP: restarting hte device");
       LedSetup(LED_MODE_OFF);
       ESP.restart();
       break;

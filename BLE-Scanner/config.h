@@ -26,6 +26,11 @@
 #ifndef __CONFIG_H__
 #define __CONFIG_H__ 1
 
+/*
+ * enable/disable features
+ */
+
+
 #define __TITLE__   "BLE-Scanner"
 
 /*

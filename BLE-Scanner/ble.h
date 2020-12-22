@@ -40,8 +40,15 @@
 /*
     Bluetooth LE settings (in seconds)
 */
-#define BLE_SCAN_TIME     10
-#define BLE_PAUSE_TIME    15
+#define BLE_SCAN_TIME_MIN     5
+#define BLE_SCAN_TIME_MAX     100
+#define BLE_PAUSE_TIME_MIN    0
+#define BLE_PAUSE_TIME_MAX    (24 * 60 * 60)
+
+/*
+ * setup
+ */
+void BleSetup(void);
 
 /*
    initiate a BLE scan

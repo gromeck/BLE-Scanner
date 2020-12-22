@@ -44,6 +44,11 @@ void HttpSetup(void);
 */
 void HttpUpdate(void);
 
+/*
+  return the time in seconds since the last HTTP request
+ */
+int HttpLastRequest(void);
+
 #endif
 
 /**/

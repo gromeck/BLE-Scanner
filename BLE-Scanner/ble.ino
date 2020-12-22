@@ -24,6 +24,7 @@
 */
 
 #include "config.h"
+#include "state.h"
 #include "ble.h"
 #include "mqtt.h"
 #include "util.h"
@@ -37,6 +38,16 @@ static BLEScan *_BleScan = NULL;
    the last scan list as HTML
 */
 static String _BleScanListHtml = "no scan so far";
+
+/*
+   setup
+*/
+void BleSetup(void)
+{
+  LogMsg("BLE: setting up timout values in the status table");
+  StateModifyTimeout(STATE_SCANNING, _config.ble.scan_time * 1000);
+  StateModifyTimeout(STATE_PAUSING, _config.ble.pause_time * 1000);
+}
 
 /*
    Callback invoked when scanning has completed.
@@ -139,7 +150,7 @@ void BleStartScan(void)
      NOTE: the so far known devices will be dropped
   */
   LogMsg("BLE: starting scan");
-  _BleScan->start(BLE_SCAN_TIME, BleScanComplete, false);
+  _BleScan->start(_config.ble.scan_time - 1, BleScanComplete, false);
 }
 
 /*

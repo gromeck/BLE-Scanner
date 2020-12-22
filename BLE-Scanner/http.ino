@@ -30,10 +30,14 @@
 #include <WebServer.h>
 
 /*
-**  Initialize the Ethernet server library
-**  with the IP address and port you want to use
+   the web server object
 */
 static WebServer _WebServer(80);
+
+/*
+  time of the last HTTP request
+*/
+static unsigned long _last_request = 0;
 
 /*
    setup the webserver
@@ -74,6 +78,7 @@ void HttpSetup(void)
   ConfigGet(0, sizeof(CONFIG), &_config);
 
   _WebServer.onNotFound( []() {
+    _last_request = millis();
     if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
       return _WebServer.requestAuthentication();
 
@@ -88,6 +93,7 @@ void HttpSetup(void)
   });
 
   _WebServer.on("/styles.css", []() {
+    _last_request = millis();
     _WebServer.send(200, "text/css",
                     "html, body { background:#ffffff; }"
                     "body { margin:1rem; padding:0; font-familiy:'sans-serif'; color:#202020; text-align:center; font-size:1rem; }"
@@ -109,6 +115,7 @@ void HttpSetup(void)
   });
 
   _WebServer.on("/config", []() {
+    _last_request = millis();
     if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
       return _WebServer.requestAuthentication();
 
@@ -125,19 +132,19 @@ void HttpSetup(void)
          take over the configuration parameters
       */
 #define CHECK_AND_SET_STRING(type,name) { if (_WebServer.hasArg(#type "_" #name)) strncpy(_config.type.name,_WebServer.arg(#type "_" #name).c_str(),sizeof(_config.type.name) - 1); }
-#define CHECK_AND_SET_NUMBER(type,name) { if (_WebServer.hasArg(#type "_" #name)) _config.type.name = atoi(_WebServer.arg(#type "_" #name).c_str()); }
+#define CHECK_AND_SET_NUMBER(type,name,minimum,maximum) { if (_WebServer.hasArg(#type "_" #name)) _config.type.name = min(max(atoi(_WebServer.arg(#type "_" #name).c_str()),(minimum)),(maximum)); }
       CHECK_AND_SET_STRING(device, name);
       CHECK_AND_SET_STRING(device, password);
       CHECK_AND_SET_STRING(wifi, ssid);
       CHECK_AND_SET_STRING(wifi, psk);
       CHECK_AND_SET_STRING(ntp, server);
       CHECK_AND_SET_STRING(mqtt, server);
-      CHECK_AND_SET_NUMBER(mqtt, port);
+      CHECK_AND_SET_NUMBER(mqtt, port, 1024, 65535);
       CHECK_AND_SET_STRING(mqtt, user);
       CHECK_AND_SET_STRING(mqtt, password);
       CHECK_AND_SET_STRING(mqtt, clientID);
-      CHECK_AND_SET_NUMBER(ble, scan_time);
-      CHECK_AND_SET_NUMBER(ble, pause_time);
+      CHECK_AND_SET_NUMBER(ble, scan_time, BLE_SCAN_TIME_MIN, BLE_SCAN_TIME_MAX);
+      CHECK_AND_SET_NUMBER(ble, pause_time, BLE_PAUSE_TIME_MIN, BLE_PAUSE_TIME_MAX);
 
       /*
          write the config back
@@ -158,6 +165,7 @@ void HttpSetup(void)
   });
 
   _WebServer.on("/config/device", []() {
+    _last_request = millis();
     _WebServer.send(200, "text/html",
                     _html_header +
                     "<form method='get' action='/config'>"
@@ -183,6 +191,7 @@ void HttpSetup(void)
   });
 
   _WebServer.on("/config/wifi", []() {
+    _last_request = millis();
     _WebServer.send(200, "text/html",
                     _html_header +
                     "<form method='get' action='/config'>"
@@ -206,6 +215,7 @@ void HttpSetup(void)
   });
 
   _WebServer.on("/config/ntp", []() {
+    _last_request = millis();
     _WebServer.send(200, "text/html",
                     _html_header +
                     "<form method='get' action='/config'>"
@@ -225,6 +235,7 @@ void HttpSetup(void)
   });
 
   _WebServer.on("/config/mqtt", []() {
+    _last_request = millis();
     _WebServer.send(200, "text/html",
                     _html_header +
                     "<form method='get' action='/config'>"
@@ -260,6 +271,7 @@ void HttpSetup(void)
   });
 
   _WebServer.on("/config/ble", []() {
+    _last_request = millis();
     _WebServer.send(200, "text/html",
                     _html_header +
                     "<form method='get' action='/config'>"
@@ -267,11 +279,11 @@ void HttpSetup(void)
                     "<legend>"
                     "<b>&nbsp;BLE&nbsp;</b>"
                     "</legend>"
-                    "<b>Scan Time</b>"
+                    "<b>Scan Time (" + BLE_SCAN_TIME_MIN + "s - " + BLE_SCAN_TIME_MAX + "s)</b>"
                     "<br>"
                     "<input name='ble_scan_time' type='text' placeholder='BLE scan time' value='" + String(_config.ble.scan_time) + "'>"
                     "<p>"
-                    "<b>Pause Time</b>"
+                    "<b>Pause Time (" + BLE_PAUSE_TIME_MIN + "s - " + BLE_PAUSE_TIME_MAX + "s)</b>"
                     "<br>"
                     "<input name='ble_pause_time' type='text' placeholder='BLE pause time' value='" + String(_config.ble.pause_time) + "'>"
                     "<p>"
@@ -283,6 +295,7 @@ void HttpSetup(void)
   });
 
   _WebServer.on("/config/reset", []() {
+    _last_request = millis();
     if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
       return _WebServer.requestAuthentication();
 
@@ -304,10 +317,11 @@ void HttpSetup(void)
     /*
         trigger reboot
     */
-    StateChange(STATE_REBOOTING);
+    StateChange(STATE_WAIT_BEFORE_REBOOTING);
   });
 
   _WebServer.on("/info", []() {
+    _last_request = millis();
     if (_config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
       return _WebServer.requestAuthentication();
 
@@ -386,6 +400,7 @@ void HttpSetup(void)
   });
 
   _WebServer.on("/restart", []() {
+    _last_request = millis();
     if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
       return _WebServer.requestAuthentication();
 
@@ -400,10 +415,11 @@ void HttpSetup(void)
     /*
         trigger reboot
     */
-    StateChange(STATE_REBOOTING);
+    StateChange(STATE_WAIT_BEFORE_REBOOTING);
   });
 
   _WebServer.on("/ble", []() {
+    _last_request = millis();
     _WebServer.send(200, "text/html",
                     _html_header +
                     BleScanListHTML() +
@@ -413,6 +429,7 @@ void HttpSetup(void)
   });
 
   _WebServer.begin();
+  _last_request = millis();
   LogMsg("HTTP: server started");
 }
 
@@ -422,4 +439,12 @@ void HttpSetup(void)
 void HttpUpdate(void)
 {
   _WebServer.handleClient();
+}
+
+/*
+  return the time in seconds since the last HTTP request
+*/
+int HttpLastRequest(void)
+{
+  return (millis() - _last_request) / 1000;
 }/**/
