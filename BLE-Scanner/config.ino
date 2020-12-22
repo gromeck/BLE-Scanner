@@ -28,7 +28,6 @@
 #include "config.h"
 #include "eeprom.h"
 
-bool _config_mode = false;
 CONFIG _config;
 
 /*
@@ -37,28 +36,30 @@ CONFIG _config;
 void ConfigSetup(void)
 {
   /*
-   * read the full config from the EEPROM
-   */
-  memset(&_config,0,sizeof(CONFIG));
+     read the full config from the EEPROM
+  */
+  memset(&_config, 0, sizeof(CONFIG));
   EepromInit(sizeof(CONFIG));
-  EepromRead(0,sizeof(CONFIG),&_config);
+  EepromRead(0, sizeof(CONFIG), &_config);
 
   /*
-   * check if the config version is ok
-   */
-  if (strcmp(_config.magic,CONFIG_MAGIC) || _config.version != CONFIG_VERSION) {
+     check if the config version is ok
+  */
+  if (strcmp(_config.magic, CONFIG_MAGIC) || _config.version != CONFIG_VERSION) {
     /*
-     * set a new default configuration
-     */
+       set a new default configuration
+    */
     LogMsg("CFG: unexpected magic and version found -- erasing config and entering config mode");
-    memset(&_config,0,sizeof(CONFIG));
-    strcpy(_config.magic,CONFIG_MAGIC);
-    _config.version = CONFIG_VERSION;  
-    _config_mode = true;
+    memset(&_config, 0, sizeof(CONFIG));
+    strcpy(_config.magic, CONFIG_MAGIC);
+    _config.version = CONFIG_VERSION;
+    StateChange(STATE_CONFIGURING);
   }
 
-  if (DBG)
-    dump("CFG:",&_config,sizeof(CONFIG));
+
+#if DBG_DUMP
+  dump("CFG:", &_config, sizeof(CONFIG));
+#endif
 }
 
 /*
@@ -66,35 +67,36 @@ void ConfigSetup(void)
 */
 void ConfigUpdate(void)
 {
-
+  // nothin to do so far
 }
 
 
 /*
- * functions to get the configuration for a subsystem
- */
-void ConfigGet(int offset,int size,void *cfg)
+   functions to get the configuration for a subsystem
+*/
+void ConfigGet(int offset, int size, void *cfg)
 {
-  DbgMsg("CFG: getting config: offset:%d  size:%d  cfg:%p",offset,size,cfg);
-  
-  memcpy(cfg,(byte *) &_config + offset,size);
+  DbgMsg("CFG: getting config: offset:%d  size:%d  cfg:%p", offset, size, cfg);
 
-  if (DBG)
-    dump("CFG:",cfg,size);
+  memcpy(cfg, (byte *) &_config + offset, size);
+
+#if DBG_DUMP
+  dump("CFG:", cfg, size);
+#endif
 }
 
 /*
- * functions to set the configuration for a subsystem -- will be written to the EEPROM
- */
-void ConfigSet(int offset,int size,void *cfg)
+   functions to set the configuration for a subsystem -- will be written to the EEPROM
+*/
+void ConfigSet(int offset, int size, void *cfg)
 {
-  DbgMsg("CFG: setting config: offset:%d  size:%d  cfg:%p",offset,size,cfg);
-  
-  memcpy((byte *) &_config + offset,cfg,size);
+  DbgMsg("CFG: setting config: offset:%d  size:%d  cfg:%p", offset, size, cfg);
 
-  if (DBG)
-    dump("CFG:",cfg,size);
+  memcpy((byte *) &_config + offset, cfg, size);
 
-  
-  EepromWrite(offset,size,(byte *) &_config + offset);
+#if DBG_DUMP
+  dump("CFG:", cfg, size);
+#endif
+
+  EepromWrite(offset, size, (byte *) &_config + offset);
 }/**/

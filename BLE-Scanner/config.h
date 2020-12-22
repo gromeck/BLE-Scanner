@@ -28,18 +28,21 @@
 
 #define __TITLE__   "BLE-Scanner"
 
-#define DBG   1
+/*
+   control the debugging messages
+*/
+#define DBG         1
+#define DBG_DUMP    (DBG && 0)
 
 /*
- * if true, we are in config mode, which means that
- * NTP, MQTT, BLE are disabled
- */
-extern bool _config_mode;
-
-
+  tags to mark the configuration in the EEPROM
+*/
 #define CONFIG_MAGIC      __TITLE__ "-CONFIG"
 #define CONFIG_VERSION    2
 
+/*
+   sub-systems config structs
+*/
 typedef struct _config_device {
   char name[64];
   char password[64];
@@ -84,8 +87,8 @@ typedef struct _config {
 } CONFIG;
 
 /*
- * the config is global
- */
+   the config is global
+*/
 extern CONFIG _config;
 
 /*
@@ -99,15 +102,15 @@ void ConfigSetup(void);
 void ConfigUpdate(void);
 
 /*
- * functions to get the configuration for a subsystem
- */
+   functions to get the configuration for a subsystem
+*/
 #define CONFIG_GET(type,name,cfg)  ConfigGet(offsetof(CONFIG,name),sizeof(CONFIG_ ## type),(void *) (cfg))
-void ConfigGet(int offset,int size,void *cfg);
+void ConfigGet(int offset, int size, void *cfg);
 
 /*
- * functions to set the configuration for a subsystem -- will be written to the EEPROM
- */
+   functions to set the configuration for a subsystem -- will be written to the EEPROM
+*/
 #define CONFIG_SET(type,name,cfg)  ConfigSet(offsetof(CONFIG,name),sizeof(type),(void *) (cfg))
-void ConfigSet(int offset,int size,void *cfg);
+void ConfigSet(int offset, int size, void *cfg);
 
 #endif
