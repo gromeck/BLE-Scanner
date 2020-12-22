@@ -41,13 +41,11 @@ enum LED_MODE {
   LED_MODE_ON,
   LED_MODE_BLINK_SLOW,
   LED_MODE_BLINK_FAST,
-  LED_MODE_BLINK_NORMAL
 };
 
 /*
    define the blink rates in milli seconds
 */
-#define LED_BLINK_RATE_NORMAL(state)  ((state) ?  500  : 500)
 #define LED_BLINK_RATE_SLOW(state)    ((state) ? 1000 : 1000)
 #define LED_BLINK_RATE_FAST(state)    ((state) ?  100  : 100)
 

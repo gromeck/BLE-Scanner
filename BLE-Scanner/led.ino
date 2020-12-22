@@ -48,9 +48,6 @@ void LedUpdate(void)
   unsigned long now = millis();
 
   switch (_led_mode) {
-    case LED_MODE_BLINK_NORMAL:
-      blink_rate = LED_BLINK_RATE_NORMAL(_led_state);
-      break;
     case LED_MODE_BLINK_SLOW:
       blink_rate = LED_BLINK_RATE_SLOW(_led_state);
       break;
@@ -75,7 +72,6 @@ void LedMode(int led_mode)
   DbgMsg("LED: _led_mode=%d  _led_last_blink=%lu  _led_state=%d", _led_mode, _led_last_blink, _led_state);
 
   switch (_led_mode = led_mode) {
-    case LED_MODE_BLINK_NORMAL:
     case LED_MODE_BLINK_SLOW:
     case LED_MODE_BLINK_FAST:
       _led_last_blink = 0;

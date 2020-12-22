@@ -93,7 +93,7 @@ void loop()
       /*
          start the scanner
       */
-      LedSetup(LED_MODE_BLINK_FAST);
+      LedSetup(LED_MODE_ON);
       BleStartScan();
       break;
     case STATE_PAUSING:
@@ -106,7 +106,7 @@ void loop()
       /*
          time to configure the device
       */
-      LedSetup(LED_MODE_BLINK_NORMAL);
+      LedSetup(LED_MODE_BLINK_FAST);
       break;
     case STATE_REBOOT:
       /*
