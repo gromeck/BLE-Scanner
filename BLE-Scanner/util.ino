@@ -56,11 +56,15 @@ IPAddress BytesToIPAddress(uint8_t *bytes)
 */
 const char *AddressToString(byte *addr, int addrlen, bool dec)
 {
-  static char str[25];
+#define ROTATE_BUFFER 4
+  static int rotate = -1;
+  static char rotate_buffer[ROTATE_BUFFER][25];
+  char *str = rotate_buffer[++rotate % ROTATE_BUFFER];
+#undef ROTATE_BUFFER
   int len = 0;
 
   for (int n = 0; n < addrlen; n++) {
-    len += sprintf(&str[len], (dec) ? "%d" : "%02x", addr[n]);
+    len += sprintf(&str[len], (dec) ? "%d" : "%02X", addr[n]);
     str[len++] = (dec) ? '.' : ':';
   }
   str[len - 1] = '\0';
@@ -123,13 +127,13 @@ void LogMsg(const char *fmt, ...)
   va_list args;
   time_t t = now();
   char timestamp[20];
-  char msg[128];
+  char msg[256];
 
   sprintf(timestamp, "%02d.%02d.%04d %02d:%02d:%02d",
           day(t), month(t), year(t), hour(t), minute(t), second(t));
 
   va_start(args, fmt);
-  vsnprintf(msg, 128, fmt, args);
+  vsnprintf(msg,sizeof(msg) - 1, fmt, args);
   va_end(args);
 
   if (Serial) {
