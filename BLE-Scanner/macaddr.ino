@@ -30,7 +30,7 @@
    struct to keep one mac address and its vendor
 */
 typedef struct _macaddr {
-  unsigned char mac[4];
+  unsigned char mac[3];
   const char *vendor;
 } MACADDR;
 
