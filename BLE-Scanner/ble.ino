@@ -34,8 +34,8 @@
 static BLEScan *_BleScan = NULL;
 
 /*
- * the last scan list as HTML
- */
+   the last scan list as HTML
+*/
 static String _BleScanListHtml = "no scan so far";
 
 /*
@@ -48,18 +48,18 @@ static void BleScanComplete(BLEScanResults scanResults)
 
   LogMsg("BLE: finished scan -- Found %d device", scanResults.getCount());
 
-  LogMsg("BLE: %-17.17s  %4.4s  %-20.20s  %s", "MAC", "RSSI", "Name","Vendor");
+  LogMsg("BLE: %-17.17s  %4.4s  %-20.20s  %s", "MAC", "RSSI", "Name", "Vendor");
   LogMsg("BLE: ---------------------------------------------------------------------");
 
-  strftime(time_buffer,sizeof(time_buffer),"%H:%M:%S  %d-%m-%Y",localtime(&t));
+  strftime(time_buffer, sizeof(time_buffer), "%H:%M:%S  %d-%m-%Y", localtime(&t));
   _BleScanListHtml = "BLE Scan List: " + String(time_buffer) + "<p>";
   _BleScanListHtml += "<table class='blescanlist'>"
-          "<tr>"
-          "<th>MAC</th>"
-          "<th>RSSI</th>"
-          "<th>Name</th>"
-          "<th>Vendor</th>"
-          "</tr>";
+                      "<tr>"
+                      "<th>MAC</th>"
+                      "<th>RSSI</th>"
+                      "<th>Name</th>"
+                      "<th>Vendor</th>"
+                      "</tr>";
   for (int i = 0; i < scanResults.getCount(); i++) {
     /*
        loop over the result list
@@ -67,13 +67,13 @@ static void BleScanComplete(BLEScanResults scanResults)
     BLEAdvertisedDevice device = scanResults.getDevice(i);
 
     /*
-     * lookup the vendor
-     */
+       lookup the vendor
+    */
     String MAC = String(device.getAddress().toString().c_str());
     MAC.toUpperCase();
-    const byte *macaddr = StringToAddress((const char *) MAC.c_str(),6,false);
+    const byte *macaddr = StringToAddress((const char *) MAC.c_str(), 6, false);
     const char *vendor = MacAddrLookup(macaddr);
-      
+
     LogMsg("BLE: %-17.17s  %4.4s  %-20.20s  %s",
            MAC.c_str(),
            device.haveRSSI() ? String(device.getRSSI()).c_str() : "-",
@@ -93,11 +93,11 @@ static void BleScanComplete(BLEScanResults scanResults)
        setup the list as HTML
     */
     _BleScanListHtml += "<tr>"
-          "<td>" + MAC + "</td>"
-          "<td>" + String(device.getRSSI()) + "</td>"
-          "<td>" + String(device.getName().c_str()) + "</td>"
-          "<td>" + String(vendor) + "</td>"
-          "</tr>";
+                        "<td>" + MAC + "</td>"
+                        "<td>" + String(device.getRSSI()) + "</td>"
+                        "<td>" + String(device.getName().c_str()) + "</td>"
+                        "<td>" + String(vendor) + "</td>"
+                        "</tr>";
   }
   _BleScanListHtml += "</table>";
 
@@ -112,7 +112,7 @@ static void BleScanComplete(BLEScanResults scanResults)
 */
 void BleStartScan(void)
 {
-  if (_config_mode)
+  if (StateCheck(STATE_CONFIGURING))
     return;
 
   if (!_BleScan) {
@@ -143,8 +143,8 @@ void BleStartScan(void)
 }
 
 /*
- * return the last BLE scan list as HTML
- */
+   return the last BLE scan list as HTML
+*/
 String BleScanListHTML(void)
 {
   return _BleScanListHtml;

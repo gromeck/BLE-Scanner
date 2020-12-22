@@ -49,8 +49,8 @@
 void BleStartScan(void);
 
 /*
- * return the last BLE scan list as HTML
- */
+   return the last BLE scan list as HTML
+*/
 String BleScanListHTML(void);
 
 #endif
