@@ -66,6 +66,7 @@ void setup()
   /*
      setup the other sub-systems
   */
+  MacAddrSetup();
   NtpSetup();
   HttpSetup();
   MqttSetup();
