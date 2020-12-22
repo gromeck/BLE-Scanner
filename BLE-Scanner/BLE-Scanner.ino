@@ -50,17 +50,22 @@ void setup()
   ConfigSetup();
   if (!WifiSetup()) {
     /*
-     * something wen't wrong -- enter configuration mode
-     */
+       something wen't wrong -- enter configuration mode
+    */
     LogMsg("SETUP: no WIFI connection -- entering configuration mode");
-    _config_mode = true;
+    StateSetup(STATE_CONFIGURING);
     WifiSetup();
+  }
+  else {
+    /*
+       start in operational mode
+    */
+    StateSetup(STATE_PAUSING);
   }
 
   /*
-   * setup the other sub-systems
-   */
-  StateSetup((_config_mode) ? STATE_CONFIGURING : STATE_PAUSING);
+     setup the other sub-systems
+  */
   NtpSetup();
   HttpSetup();
   MqttSetup();
@@ -99,10 +104,16 @@ void loop()
       break;
     case STATE_CONFIGURING:
       /*
-         we are now pausing
+         time to configure the device
       */
       LedSetup(LED_MODE_BLINK_NORMAL);
       break;
-
+    case STATE_REBOOT:
+      /*
+         time to boot
+      */
+      LedSetup(LED_MODE_OFF);
+      ESP.restart();
+      break;
   }
 }
