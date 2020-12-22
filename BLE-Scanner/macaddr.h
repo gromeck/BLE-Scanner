@@ -26,6 +26,9 @@
 #ifndef __MACADDR_H__
 #define __MACADDR_H__ 1
 
+#define MAC_ADDR_LEN    6
+
+
 /*
    lookup the vendor by the mac address
 */

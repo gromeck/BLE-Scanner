@@ -27,6 +27,7 @@
 #include "state.h"
 #include "ble.h"
 #include "mqtt.h"
+#include "macaddr.h"
 #include "util.h"
 
 /*
@@ -82,7 +83,7 @@ static void BleScanComplete(BLEScanResults scanResults)
     */
     String MAC = String(device.getAddress().toString().c_str());
     MAC.toUpperCase();
-    const byte *macaddr = StringToAddress((const char *) MAC.c_str(), 6, false);
+    const byte *macaddr = StringToAddress((const char *) MAC.c_str(), MAC_ADDR_LEN, false);
     const char *vendor = MacAddrLookup(macaddr);
 
     LogMsg("BLE: %-17.17s  %4.4s  %-20.20s  %s",
