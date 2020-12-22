@@ -39,9 +39,22 @@
 URL="https://macaddress.io/database/macaddress.io-db.csv"
 TARGET="../BLE-Scanner/macaddr-list.h"
 
+#
+#	write a header to the file
+#
+cat >$TARGET <<EOM
+/*
+	updated with $0
+	
+	$( date )
+*/
+EOM
+
+#
+#	get the mac db
+#
 wget -q -O- $URL | \
-	awk '
-		BEGIN {
+	awk 'BEGIN {
 		  FS = ",";
 		}
 		/^..:..:..,/ {
@@ -51,7 +64,5 @@ wget -q -O- $URL | \
 			vendor = substr($3,1,32);
 			gsub(/"/, "", vendor);
 			printf "\t{ { 0x%s, 0x%s, 0x%s }, \"%s\" },\n", mac[1], mac[2], mac[3], vendor;
-		}
-		END {
 		}' | \
-	sort >$TARGET
+	sort >>$TARGET
