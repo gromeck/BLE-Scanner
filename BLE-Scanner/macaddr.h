@@ -28,6 +28,10 @@
 
 #define MAC_ADDR_LEN    6
 
+/*
+ * setup
+ */
+void MacAddrSetup(void);
 
 /*
    lookup the vendor by the mac address

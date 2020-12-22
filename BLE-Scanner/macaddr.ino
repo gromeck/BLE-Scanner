@@ -30,29 +30,68 @@
    struct to keep one mac address and its vendor
 */
 typedef struct _macaddr {
-  unsigned char mac[3];
+  const byte mac[3];
   const char *vendor;
 } MACADDR;
 
 /*
    array of known mac address with their vendors
 */
-static MACADDR _macaddrs[] PROGMEM = {
+static const MACADDR _macaddrs[] PROGMEM = {
 #include "macaddr-list.h"
   { 0, 0 }
 };
+
+/*
+   define the list lenght
+*/
+#define MACADDR_LIST_LENGTH   (sizeof(_macaddrs) / sizeof(_macaddrs[0]) - 1)
+
+/*
+   compare two mac addresses (first 3 digits
+*/
+static int maccmp(const byte *a, const byte *b)
+{
+  int cmp;
+
+  if ((cmp = (int) * a++ - (int) * b++))
+    return cmp;
+  if ((cmp = (int) * a++ - (int) * b++))
+    return cmp;
+  return (int) * a - (int) * b;
+}
+
+/*
+   setup
+*/
+void MacAddrSetup(void)
+{
+  DbgMsg("MAC: sizeof lookup table entry: %d", sizeof(MACADDR));
+  DbgMsg("MAC: sizeof lookup table: %d", sizeof(_macaddrs));
+  DbgMsg("MAC: length of lookup table: %d", MACADDR_LIST_LENGTH);
+}
 
 /*
    lookup the vendor by the mac address
 */
 const char *MacAddrLookup(const byte *mac)
 {
-  LogMsg("MAC: looking up %02x:%02x:%02x", mac[0], mac[1], mac[2]);
-  LogMsg("MAC: scanning %d vendors", sizeof(_macaddrs) / sizeof(_macaddrs[0]));
-  for (int n = 0; n < sizeof(_macaddrs) / sizeof(_macaddrs[0]); n++) {
-    if (mac[0] == _macaddrs[n].mac[0] && mac[1] == _macaddrs[n].mac[1] && mac[2] == _macaddrs[n].mac[2])
-      return _macaddrs[n].vendor;
+  DbgMsg("MAC: looking up %02x:%02x:%02x", mac[0], mac[1], mac[2]);
+
+  int low = 0;
+  int high = MACADDR_LIST_LENGTH - 1;
+  int mid, cmp;
+
+  while (low <= high) {
+    mid = low + (high - low) / 2;
+    if ((cmp = maccmp(mac, _macaddrs[mid].mac)))
+      if (cmp > 0)
+        low = mid + 1;
+      else
+        high = mid - 1;
+    else
+      return _macaddrs[mid].vendor;
   }
-  LogMsg("MAC: nothing found");
+  DbgMsg("MAC: nothing found");
   return NULL;
 }/**/
