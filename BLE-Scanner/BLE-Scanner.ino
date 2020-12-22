@@ -60,7 +60,7 @@ void setup()
     /*
        start in operational mode
     */
-    StateSetup(STATE_PAUSING);
+    StateSetup(STATE_SCANNING);
   }
 
   /*
@@ -125,7 +125,7 @@ void loop()
       /*
          time to boot
       */
-      LogMsg("LOOP: restarting hte device");
+      LogMsg("LOOP: restarting the device");
       LedSetup(LED_MODE_OFF);
       ESP.restart();
       break;
