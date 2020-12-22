@@ -27,6 +27,7 @@
 #define __WIFI_H__  1
 
 #include "config.h"
+#include "state.h"
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <WiFiClient.h>
@@ -35,15 +36,30 @@
 extern WiFiClient _wifiClient;
 
 /*
-   default WLAN SSID and PSK
+   the WiFi SSID for configuration mode
 */
-#define WIFI_DEFAULT_SSID "CasaDiLorenzi"
-#define WIFI_DEFAULT_PSK  "EasyMoltJukeHire"
+#define WIFI_AP_SSID_PREFIX                __TITLE__ "-AP-"
 
-#define WIFI_AP_USE_LAST_MAC_DIGITS   3
+/*
+   the WiFi SSID for configuration mode uses the last digits of the own MAC
+*/
+#define WIFI_AP_SSID_USE_LAST_MAC_DIGITS   3
 
+/*
+   number of retries to connect to the configured Wifi
+
+   when retrie count is reached, we will give up -- the device will enter the configuration mode
+*/
+#define WIFI_CONNECT_RETRIES          20
+
+/*
+   port for the DNS
+*/
 #define DNS_PORT  53
 
+/*
+   compute the WiFi signal strength in percent out of the RSSI
+*/
 #define WIFI_RSSI_TO_QUALITY(rssi)  max(0,min(100,2 * (100 + rssi)))
 
 /*
