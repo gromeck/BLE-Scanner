@@ -115,10 +115,10 @@ void HttpSetup(void)
     /*
        handle configuration changes
     */
-    if (DBG) {
-      for (int n = 0; n < _WebServer.args(); n++ )
-        LogMsg("HTTP: args: %s=%s", _WebServer.argName(n), _WebServer.arg(n));
-    }
+#if DBG
+    for (int n = 0; n < _WebServer.args(); n++ )
+      LogMsg("HTTP: args: %s=%s", _WebServer.argName(n).c_str(), _WebServer.arg(n).c_str());
+#endif
 
     if (_WebServer.hasArg("save")) {
       /*
