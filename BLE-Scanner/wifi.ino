@@ -25,10 +25,11 @@
 
 #include "config.h"
 #include "wifi.h"
+#include "state.h"
 
 WiFiClient _wifiClient;
 static DNSServer *_dns_server = NULL;
-static char _config_mode_SSID[64] = "";
+static char _AP_SSID[64] = "";
 
 /*
    setup wifi
@@ -37,22 +38,22 @@ bool WifiSetup(void)
 {
   LogMsg("WIFI: my MAC address is %s", WifiGetMacAddr().c_str());
 
-  if (_config_mode) {
+  if (StateCheck(STATE_CONFIGURING)) {
     /*
        open an AccessPoint
     */
     uint8_t mac[6];
-    strcpy(_config_mode_SSID,(String(__TITLE__ "-AP-") + String(AddressToString((byte *) WiFi.macAddress(mac) + sizeof(mac) - WIFI_AP_USE_LAST_MAC_DIGITS, WIFI_AP_USE_LAST_MAC_DIGITS, false))).c_str());
+    strcpy(_AP_SSID, (String(WIFI_AP_SSID_PREFIX) + String(AddressToString((byte *) WiFi.macAddress(mac) + sizeof(mac) - WIFI_AP_SSID_USE_LAST_MAC_DIGITS, WIFI_AP_SSID_USE_LAST_MAC_DIGITS, false))).c_str());
 
-    LogMsg("WIFI: opening access point with SSID %s ...", _config_mode_SSID);
-    WiFi.softAP(_config_mode_SSID);
+    LogMsg("WIFI: opening access point with SSID %s ...", _AP_SSID);
+    WiFi.softAP(_AP_SSID);
     delay(1000);
 
     LogMsg("WIFI: local IP address %s", IPAddressToString(WiFi.softAPIP()).c_str());
 
     /*
-     * configure the DNS so that every requests will go to our device
-     */
+       configure the DNS so that every requests will go to our device
+    */
     _dns_server = new DNSServer();
     _dns_server->setErrorReplyCode(DNSReplyCode::NoError);
     _dns_server->start(DNS_PORT, "*", WiFi.softAPIP());
@@ -66,7 +67,7 @@ bool WifiSetup(void)
     WiFi.mode(WIFI_STA);
     WiFi.begin(_config.wifi.ssid, _config.wifi.psk);
 
-    LogMsg("WIFI: waiting to connect to %s ...", WiFi.SSID().c_str());
+    LogMsg("WIFI: waiting to connect to %s ...", _config.wifi.ssid);
   }
 
   return WifiUpdate();
@@ -77,9 +78,9 @@ bool WifiSetup(void)
 */
 bool WifiUpdate(void)
 {
-  if (_config_mode) {
+  if (StateCheck(STATE_CONFIGURING)) {
     /*
-       we are in access point mode
+       we are in configuration mode
 
        as we are the DNS, we have to answer the requests
     */
@@ -94,13 +95,13 @@ bool WifiUpdate(void)
       /*
          wait to connect
       */
-      int retries = 20;
+      int retries = WIFI_CONNECT_RETRIES;
 
       DbgMsg("WIFI: status is not connected ... waiting for connection");
       while (WiFi.status() != WL_CONNECTED) {
         delay(1000);
         if (--retries <= 0) {
-          LogMsg("WIFI: giving up");
+          LogMsg("WIFI: giving up after %d retries", WIFI_CONNECT_RETRIES);
           return false;
         }
       }
@@ -120,7 +121,7 @@ bool WifiUpdate(void)
 */
 String WifiGetSSID(void)
 {
-  return _config_mode ? _config_mode_SSID : WiFi.SSID();
+  return StateCheck(STATE_CONFIGURING) ? _AP_SSID : WiFi.SSID();
 }
 
 /*
@@ -137,7 +138,7 @@ int WifiGetRSSI(void)
 */
 String WifiGetIpAddr(void)
 {
-  return IPAddressToString(_config_mode ? WiFi.softAPIP() : WiFi.localIP());
+  return IPAddressToString(StateCheck(STATE_CONFIGURING) ? WiFi.softAPIP() : WiFi.localIP());
 }
 
 /*
