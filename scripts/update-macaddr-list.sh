@@ -61,8 +61,8 @@ wget -q -O- $URL | \
 			# mac address ($1) and vendor ($3)
 			# print $1,$3;
 			split($1,mac,":"); 
-			vendor = substr($3,1,32);
+			vendor = substr($3,1,24);
 			gsub(/"/, "", vendor);
 			printf "\t{ { 0x%s, 0x%s, 0x%s }, \"%s\" },\n", mac[1], mac[2], mac[3], vendor;
 		}' | \
-	sort >>$TARGET
+	sort | tee --append $TARGET | wc
