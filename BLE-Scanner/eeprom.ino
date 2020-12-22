@@ -35,8 +35,9 @@ void EepromInit(const int size)
   _eeprom_size = size;
   EEPROM.begin(_eeprom_size);
 
-  if (DBG)
-    EepromDump();
+#if DBG_DUMP
+  EepromDump();
+#endif
 }
 
 /*
@@ -98,7 +99,7 @@ void EepromWrite(const int addr, const int len, const void *buffer)
     //LogMsg("EEPROM.write: addr[%d] = %u",addr + n,((byte *) buffer)[n]);
   }
   EEPROM.commit();
-  if (DBG)
-    EepromDump();
-
+#if DBG_DUMP
+  EepromDump();
+#endif
 }/**/

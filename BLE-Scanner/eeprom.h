@@ -31,7 +31,7 @@
 #include "config.h"
 #include "util.h"
 #include <EEPROM.h>
- 
+
 /*
     configuration layout of the EEPROM
 
