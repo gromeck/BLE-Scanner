@@ -70,8 +70,8 @@ static int _ntp_sync_cycle = 0;
 static WiFiUDP _Udp;
 
 /*
- * initialize ntp
- */
+   initialize ntp
+*/
 static void NtpInit()
 {
   if (_ntp_ip[0]) {
@@ -157,7 +157,7 @@ static time_t NtpSync(void)
 */
 void NtpSetup(void)
 {
-  if (_config_mode)
+  if (StateCheck(STATE_CONFIGURING))
     return;
 
   CONFIG_GET(NTP, ntp, &_config_ntp);
@@ -197,7 +197,7 @@ void NtpSetup(void)
 */
 void NtpUpdate(void)
 {
-  if (_config_mode)
+  if (StateCheck(STATE_CONFIGURING))
     return;
 
   if (++_ntp_sync_cycle >= NTPSYNC_CYCLES && timeStatus() != timeSet) {

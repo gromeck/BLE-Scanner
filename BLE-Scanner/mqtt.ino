@@ -41,7 +41,7 @@ static String _topic_device;
 */
 void MqttSetup(void)
 {
-  if (_config_mode)
+  if (StateCheck(STATE_CONFIGURING))
     return;
 
   LogMsg("MQTT: setting up context");
@@ -65,7 +65,7 @@ void MqttSetup(void)
 */
 void MqttUpdate(void)
 {
-  if (_config_mode)
+  if (StateCheck(STATE_CONFIGURING))
     return;
 
   if (!_mqtt->connected()) {
