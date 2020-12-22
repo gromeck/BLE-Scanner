@@ -27,8 +27,8 @@
 #define __MACADDR_H__ 1
 
 /*
- * lookup the vendor by the mac address
- */
+   lookup the vendor by the mac address
+*/
 const char *MacAddrLookup(const byte *mac);
 
 #endif

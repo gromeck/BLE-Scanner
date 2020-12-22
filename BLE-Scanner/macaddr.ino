@@ -27,29 +27,29 @@
 #include "macaddr.h"
 
 /*
- * struct to keep one mac address and its vendor
- */
+   struct to keep one mac address and its vendor
+*/
 typedef struct _macaddr {
   unsigned char mac[4];
   const char *vendor;
 } MACADDR;
 
 /*
- * array of known mac address with their vendors
- */
+   array of known mac address with their vendors
+*/
 static MACADDR _macaddrs[] PROGMEM = {
 #include "macaddr-list.h"
   { 0, 0 }
 };
 
 /*
- * lookup the vendor by the mac address
- */
+   lookup the vendor by the mac address
+*/
 const char *MacAddrLookup(const byte *mac)
 {
-  LogMsg("MAC: looking up %02x:%02x:%02x",mac[0],mac[1],mac[2]);
-  LogMsg("MAC: scanning %d vendors",sizeof(_macaddrs) / sizeof(_macaddrs[0]));
-  for (int n = 0;n < sizeof(_macaddrs) / sizeof(_macaddrs[0]);n++) {
+  LogMsg("MAC: looking up %02x:%02x:%02x", mac[0], mac[1], mac[2]);
+  LogMsg("MAC: scanning %d vendors", sizeof(_macaddrs) / sizeof(_macaddrs[0]));
+  for (int n = 0; n < sizeof(_macaddrs) / sizeof(_macaddrs[0]); n++) {
     if (mac[0] == _macaddrs[n].mac[0] && mac[1] == _macaddrs[n].mac[1] && mac[2] == _macaddrs[n].mac[2])
       return _macaddrs[n].vendor;
   }
