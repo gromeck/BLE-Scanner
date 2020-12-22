@@ -45,7 +45,7 @@ static STATES _states[] = {
      pause time
   */
   { STATE_PAUSING, STATE_SCANNING, BLE_PAUSE_TIME * 1000 },
-  
+
   /*
      normally the state will change from scanning to pausing upon finished scan,
      this entry is just to be sure
@@ -53,9 +53,15 @@ static STATES _states[] = {
   { STATE_SCANNING, STATE_PAUSING, 2 * BLE_SCAN_TIME * 1000 },
 
   /*
-   * in this state we will stay until reboot
-   */
+     in this state we will stay until reboot
+  */
   { STATE_CONFIGURING, STATE_CONFIGURING, 10 * 60 * 1000 },
+
+  /*
+     we are in the state to reboot
+  */
+  { STATE_REBOOTING, STATE_REBOOT, 3 * 1000 },
+
 };
 
 
@@ -127,5 +133,17 @@ int StateUpdate(void)
 */
 void StateChange(int state)
 {
+  DbgMsg("STATE: state change requested from %d to %d", _state, state);
   _state_new = (_state != state) ? state : STATE_NONE;
+}
+
+/*
+   check if we are in a certain state
+
+   if a new state is set, but not yet processed in StateUpdate (_state_new differs from _state),
+   we will use this new state
+*/
+bool StateCheck(int state)
+{
+  return state == ((_state_new != STATE_NONE) ? _state_new : _state);
 }/**/

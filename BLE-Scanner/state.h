@@ -28,12 +28,16 @@
 
 /*
    STATE handling
+
+   if we are in state configuring NTP, MQTT, BLE and BasicAuth are disabled
 */
 enum STATE {
   STATE_NONE = 0,
   STATE_SCANNING,
   STATE_PAUSING,
   STATE_CONFIGURING,
+  STATE_REBOOTING,
+  STATE_REBOOT,
 };
 
 /*
@@ -52,5 +56,10 @@ int StateUpdate(void);
    change the state manually
 */
 void StateChange(int state);
+
+/*
+   check if we are in a certain state
+*/
+bool StateCheck(int state);
 
 #endif
