@@ -74,7 +74,7 @@ void HttpSetup(void)
   ConfigGet(0, sizeof(CONFIG), &_config);
 
   _WebServer.onNotFound( []() {
-    if (_config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
+    if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
       return _WebServer.requestAuthentication();
 
     _WebServer.send(200, "text/html",
@@ -96,6 +96,7 @@ void HttpSetup(void)
                     "button:hover { opacity: 1.0; }"
                     ".header { text-align:center; }"
                     ".content { text-align:left; display:inline-block; color:#000000; min-width:340px; }"
+                    ".msg { text-align:center; color:#be3731; font-weight:bold; padding:5rem 0; }"
                     ".blescanlist { padding:0; margin:0; width: 100%; }"
                     ".blescanlist tr td { font-familiy:'monospace'; }"
                     ".blescanlist tr td { padding:4px; }"
@@ -108,7 +109,7 @@ void HttpSetup(void)
   });
 
   _WebServer.on("/config", []() {
-    if (_config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
+    if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
       return _WebServer.requestAuthentication();
 
     /*
@@ -168,9 +169,11 @@ void HttpSetup(void)
                     "<br>"
                     "<input name='device_name' type='text' placeholder='Device name' value='" + String(_config.device.name) + "'>"
                     "<p>"
-                    "<b>Admin Password</b>"
+                    "<b>Web Password</b>"
                     "<br>"
                     "<input name='device_password' type='password' placeholder='Device Password' value='" + String(_config.device.password) + "'>"
+                    "<p>"
+                    "<b>Note:</b> username for authentication is <b>" HTTP_WEB_USER "</b>"
                     "<p>"
                     "<button name='save' type='submit' class='button greenbg'>Speichern</button>"
                     "</fieldset>"
@@ -280,7 +283,7 @@ void HttpSetup(void)
   });
 
   _WebServer.on("/config/reset", []() {
-    if (_config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
+    if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
       return _WebServer.requestAuthentication();
 
     /*
@@ -291,16 +294,17 @@ void HttpSetup(void)
 
     _WebServer.send(200, "text/html",
                     _html_header +
+                    "<div class='msg'>"
                     "Configuration was reset."
                     "<p>"
                     "Wait for the device to come up with an WiFi-AccessPoint, connect to it to configure the device."
+                    "</div>"
                     + _html_footer);
 
     /*
-        trigger the reset
+        trigger reboot
     */
-    delay(1000);
-    ESP.restart();
+    StateChange(STATE_REBOOTING);
   });
 
   _WebServer.on("/info", []() {
@@ -382,19 +386,21 @@ void HttpSetup(void)
   });
 
   _WebServer.on("/restart", []() {
-    if (_config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
+    if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
       return _WebServer.requestAuthentication();
 
     _WebServer.send(200, "text/html",
                     _html_header +
+                    "<div class='msg'>"
                     "Device will restart now."
+                    "</div>"
+                    "<p><form action='/' method='get'><button>Main Menu</button></form><p>"
                     + _html_footer);
 
     /*
-       trigger the restart
+        trigger reboot
     */
-    delay(1000);
-    ESP.restart();
+    StateChange(STATE_REBOOTING);
   });
 
   _WebServer.on("/ble", []() {

@@ -30,8 +30,8 @@
 #include "util.h"
 
 /*
- * user for the Basic Auth
- */
+   user for the Basic Auth
+*/
 #define HTTP_WEB_USER   "admin"
 
 /*
