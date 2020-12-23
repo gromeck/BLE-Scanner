@@ -32,11 +32,9 @@
 /*
    MQTT settings
 */
-const char *MQTT_SERVER = "fhem.site";
-const int   MQTT_PORT = 1883;
-const char *MQTT_USER = "";
-const char *MQTT_PASS = "";
-const char *MQTT_CLIENTID = "blescanner2";
+const int   MQTT_PORT_DEFAULT = 1883;
+const int   MQTT_PORT_MIN = 1024;
+const int   MQTT_PORT_MAX = 65535;
 
 const char *MQTT_TOPIC_ANNOUNCE = "/status";
 const char *MQTT_TOPIC_CONTROL = "/control";

@@ -41,17 +41,24 @@ static String _topic_device;
 */
 void MqttSetup(void)
 {
+  /*
+   * check and correct the config
+   */
+  if (!_config.mqtt.port)
+    _config.mqtt.port = MQTT_PORT_DEFAULT;
+  _config.mqtt.port = min(max(_config.mqtt.port,MQTT_PORT_MIN),MQTT_PORT_MAX);
+
   if (StateCheck(STATE_CONFIGURING))
     return;
 
   LogMsg("MQTT: setting up context");
 
   _mqtt = new PubSubClient(_wifiClient);
-  _mqtt->setServer(MQTT_SERVER, MQTT_PORT);
+  _mqtt->setServer(_config.mqtt.server, _config.mqtt.port);
 
-  _topic_announce = WifiGetSSID() + "/" + MQTT_CLIENTID + MQTT_TOPIC_ANNOUNCE;
-  _topic_control = WifiGetSSID() + "/" + MQTT_CLIENTID + MQTT_TOPIC_CONTROL;
-  _topic_device = WifiGetSSID() + "/" + MQTT_CLIENTID + MQTT_TOPIC_DEVICE;
+  _topic_announce = String(_config.mqtt.topicPrefix) + MQTT_TOPIC_ANNOUNCE;
+  _topic_control = String(_config.mqtt.topicPrefix) + MQTT_TOPIC_CONTROL;
+  _topic_device = String(_config.mqtt.topicPrefix) + MQTT_TOPIC_DEVICE;
 
   DbgMsg("MQTT: _topic_announce: %s", _topic_announce.c_str());
   DbgMsg("MQTT: _topic_control: %s", _topic_control.c_str());
@@ -72,11 +79,11 @@ void MqttUpdate(void)
     /*
        connect the MQTT server
     */
-    LogMsg("MQTT: reconnecting %s:%s@%s:%d width clientID %s ...", MQTT_USER, MQTT_PASS, MQTT_SERVER, MQTT_PORT, MQTT_CLIENTID);
+    LogMsg("MQTT: reconnecting %s:%s@%s:%d width clientID %s ...", _config.mqtt.user, _config.mqtt.password, _config.mqtt.server, _config.mqtt.port, _config.mqtt.clientID);
     bool connect_status = _mqtt->connect(
-                            MQTT_CLIENTID,
-                            MQTT_USER,
-                            MQTT_PASS,
+                            _config.mqtt.clientID,
+                            _config.mqtt.user,
+                            _config.mqtt.password,
                             _topic_announce.c_str(),
                             2,  // willQoS
                             true,  // willRetain
