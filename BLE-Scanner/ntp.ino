@@ -63,6 +63,7 @@ static byte _packetBuffer[NTP_PACKET_SIZE];
 static String _ntp_server = "";
 static IPAddress _ntp_ip(0, 0, 0, 0);
 static int _ntp_sync_cycle = 0;
+static time_t _up_since = 0;
 
 /*
 **  UDP instance to let us send and receive packets
@@ -103,7 +104,6 @@ static void NtpSendRequest(void)
   _Udp.beginPacket(_ntp_ip, NTP_UDP_PORT);
   _Udp.write(_packetBuffer, NTP_PACKET_SIZE);
   _Udp.endPacket();
-  //    Serial.println("NTP: requesing time");
 }
 
 /*
@@ -128,7 +128,9 @@ static time_t NtpReceiveReply(void)
   unsigned long ntpTime = highWord << 16 | lowWord;
   // now convert NTP time into UNIX time (seconds since Jan 1 1970)
   ntpTime -= 2208988800UL;
-  //    Serial.print("NTP: time received: "); Serial.println(ntpTime);
+  //DbgMsg("NTP: time received: %lu", ntpTime);
+  if (!_up_since)
+    _up_since = ntpTime;
   return ntpTime;
 }
 
@@ -187,7 +189,7 @@ void NtpSetup(void)
     return;
   }
 
-  LogMsg("NTP: ip=%s", IPAddressToString(_ntp_ip).c_str());
+  DbgMsg("NTP: ip=%s", IPAddressToString(_ntp_ip).c_str());
 
   NtpInit();
 }
@@ -204,4 +206,12 @@ void NtpUpdate(void)
     _ntp_sync_cycle = 0;
     NtpInit();
   }
+}
+
+/*
+   get the frist received timestamp
+*/
+time_t NtpUpSince(void)
+{
+  return _up_since;
 }/**/
