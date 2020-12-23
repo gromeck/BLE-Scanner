@@ -33,7 +33,7 @@ CONFIG _config;
 /*
     setup the configuration
 */
-void ConfigSetup(void)
+bool ConfigSetup(void)
 {
   /*
      read the full config from the EEPROM
@@ -51,15 +51,16 @@ void ConfigSetup(void)
     */
     LogMsg("CFG: unexpected magic and version found -- erasing config and entering config mode");
     memset(&_config, 0, sizeof(CONFIG));
+    
     strcpy(_config.magic, CONFIG_MAGIC);
     _config.version = CONFIG_VERSION;
-    StateChange(STATE_CONFIGURING);
+    return false;
   }
-
 
 #if DBG_DUMP
   dump("CFG:", &_config, sizeof(CONFIG));
 #endif
+  return true;
 }
 
 /*

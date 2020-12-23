@@ -69,7 +69,8 @@ typedef struct _config_mqtt {
   char user[64];
   char password[64];
   char clientID[64];
-  char reserved[256];
+  char topicPrefix[64];
+  char reserved[192];
 } CONFIG_MQTT;
 
 typedef struct _config_ble {
@@ -99,7 +100,7 @@ extern CONFIG _config;
 /*
     setup the configuration
 */
-void ConfigSetup(void);
+bool ConfigSetup(void);
 
 /*
    cyclic update of the configuration
