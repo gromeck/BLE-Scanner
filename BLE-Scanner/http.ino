@@ -139,10 +139,11 @@ void HttpSetup(void)
       CHECK_AND_SET_STRING(wifi, psk);
       CHECK_AND_SET_STRING(ntp, server);
       CHECK_AND_SET_STRING(mqtt, server);
-      CHECK_AND_SET_NUMBER(mqtt, port, 1024, 65535);
+      CHECK_AND_SET_NUMBER(mqtt, port, MQTT_PORT_MIN, MQTT_PORT_MAX);
       CHECK_AND_SET_STRING(mqtt, user);
       CHECK_AND_SET_STRING(mqtt, password);
       CHECK_AND_SET_STRING(mqtt, clientID);
+      CHECK_AND_SET_STRING(mqtt, topicPrefix);
       CHECK_AND_SET_NUMBER(ble, scan_time, BLE_SCAN_TIME_MIN, BLE_SCAN_TIME_MAX);
       CHECK_AND_SET_NUMBER(ble, pause_time, BLE_PAUSE_TIME_MIN, BLE_PAUSE_TIME_MAX);
 
@@ -263,6 +264,10 @@ void HttpSetup(void)
                     "<br>"
                     "<input name='mqtt_clientID' type='text' placeholder='MQTT ClientID' value='" + String(_config.mqtt.clientID) + "'>"
                     "<p>"
+                    "<b>TopicPrefix</b>"
+                    "<br>"
+                    "<input name='mqtt_topicPrefix' type='text' placeholder='MQTT Topic Prefix' value='" + String(_config.mqtt.topicPrefix) + "'>"
+                    "<p>"
                     "<button name='save' type='submit' class='button greenbg'>Speichern</button>"
                     "</fieldset>"
                     "</form>"
@@ -341,6 +346,10 @@ void HttpSetup(void)
                     "<th>Device Name</th>"
                     "<td>" + String(_config.device.name) + "</td>"
                     "</tr>"
+                    "<tr>"
+                    "<th>Up since</th>"
+                    "<td>" + String(TimeToString(NtpUpSince())) + "</td>"
+                    "</tr>"
                     "<tr><th></th><td>&nbsp;</td></tr>"
                     "<tr>"
                     "<th>WiFi SSID</th>"
@@ -385,8 +394,12 @@ void HttpSetup(void)
                     "<td>" + _config.mqtt.password + "</td>"
                     "</tr>"
                     "<tr>"
-                    "<th>MQTT Client ID</th>"
+                    "<th>MQTT ClientID</th>"
                     "<td>" + _config.mqtt.clientID + "</td>"
+                    "</tr>"
+                    "<tr>"
+                    "<th>MQTT Topic Prefix</th>"
+                    "<td>" + _config.mqtt.topicPrefix + "</td>"
                     "</tr>"
                     "<tr><th></th><td>&nbsp;</td></tr>"
                     "<tr>"
