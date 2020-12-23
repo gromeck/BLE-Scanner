@@ -27,6 +27,7 @@
 #define __BLE_H__ 1
 
 #include "config.h"
+#include "macaddr.h"
 
 /*
    available in the Library Manger
@@ -46,8 +47,32 @@
 #define BLE_PAUSE_TIME_MAX    (24 * 60 * 60)
 
 /*
- * setup
- */
+   how mandy device should be keep in our list
+*/
+#define BLE_DEVICE_LIST_MAX_LENGTH    1000
+
+/*
+   how many chars should be store from the name of a device
+
+*/
+#define BLE_DEVICE_NAME_LENGTH        20
+
+/*
+   struct to hold a found BLE device
+*/
+typedef struct _ble_device {
+  byte mac[MAC_ADDR_LEN];
+  int rssi;
+  char name[BLE_DEVICE_NAME_LENGTH + 1];
+  const char *vendor;
+  time_t last_seen;
+  struct _ble_device *prev;
+  struct _ble_device *next;
+} BLE_DEVICE;
+
+/*
+   setup
+*/
 void BleSetup(void);
 
 /*
