@@ -47,7 +47,11 @@ void setup()
   */
   LogMsg("*** " __TITLE__ " - Version " GIT_VERSION " ***");
   LedSetup(LED_MODE_ON);
-  ConfigSetup();
+  StateSetup(STATE_SCANNING);
+  
+  if (!ConfigSetup())
+      StateChange(STATE_CONFIGURING);
+
   if (!WifiSetup()) {
     /*
        something wen't wrong -- enter configuration mode
@@ -55,12 +59,6 @@ void setup()
     LogMsg("SETUP: no WIFI connection -- entering configuration mode");
     StateSetup(STATE_CONFIGURING);
     WifiSetup();
-  }
-  else {
-    /*
-       start in operational mode
-    */
-    StateSetup(STATE_SCANNING);
   }
 
   /*
