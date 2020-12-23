@@ -57,6 +57,7 @@ bool WifiSetup(void)
     _dns_server = new DNSServer();
     _dns_server->setErrorReplyCode(DNSReplyCode::NoError);
     _dns_server->start(DNS_PORT, "*", WiFi.softAPIP());
+    return false;
   }
   else {
     /*
@@ -69,7 +70,6 @@ bool WifiSetup(void)
 
     LogMsg("WIFI: waiting to connect to %s ...", _config.wifi.ssid);
   }
-
   return WifiUpdate();
 }
 
