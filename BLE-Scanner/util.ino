@@ -120,24 +120,36 @@ void dump(String title, const void *addr, const int len)
 }
 
 /*
+ * get a time in ascii
+ */
+const char *TimeToString(time_t t)
+{
+#define ROTATE_BUFFER 4
+#define BUFFER_SIZE   25
+  static int rotate = -1;
+  static char rotate_buffer[ROTATE_BUFFER][BUFFER_SIZE];
+  char *buffer = rotate_buffer[++rotate % ROTATE_BUFFER];
+
+  strftime(buffer, BUFFER_SIZE, "%H:%M:%S %d.%m.%Y", gmtime(&t));
+  return buffer;
+#undef BUFFER_SIZE
+#undef ROTATE_BUFFER
+}
+
+/*
 **  log a smessage to serial
 */
 void LogMsg(const char *fmt, ...)
 {
   va_list args;
-  time_t t = now();
-  char timestamp[20];
   char msg[256];
-
-  sprintf(timestamp, "%02d.%02d.%04d %02d:%02d:%02d",
-          day(t), month(t), year(t), hour(t), minute(t), second(t));
 
   va_start(args, fmt);
   vsnprintf(msg,sizeof(msg) - 1, fmt, args);
   va_end(args);
 
   if (Serial) {
-    Serial.print(timestamp);
+    Serial.print(TimeToString(now()));
     Serial.print(": ");
     Serial.println(msg);
     Serial.flush();

@@ -70,6 +70,11 @@ const byte *StringToAddress(const char *str, int addrlen, bool dec);
 void dump(String title, const void *addr, const int len);
 
 /*
+ * get a time in ascii
+ */
+const char *TimeToString(time_t t);
+
+/*
 **  log a smessage to serial
 */
 void LogMsg(const char *fmt, ...);
