@@ -20,10 +20,28 @@ The BLE scanning device is configured via a Web Frontend which is inspired by [T
 
 The BLE-Scanner doesn't need any external circuit -- just flash the software on it and configure the device.
 
+## Prepare the build environment
+
+To intall the ESP32 device support in the Arduino IDE, do as follows:
+
+* Open the preferences in the Arduino IDE and add the following URLs to the _Additional Boards Manager URLs_ 
+  * [https://dl.espressif.com/dl/package_esp32_index.json](https://dl.espressif.com/dl/package_esp32_index.json)
+  * [http://arduino.esp8266.com/stable/package_esp8266com_index.json](http://arduino.esp8266.com/stable/package_esp8266com_index.json)
+* Open the _Boards Manager_ and search for `esp32`. Install the found library.  
+* Under `Tools`
+  * select the Board `ESP32 Arduino` and your matching variant which was `WEMOS D1 MINI ESP32` in my case. This depends on the board you use.
+  * select the hightest `Upload Speed`
+  * select the right `CPU Frequency` for your board
+  * select the `Flash Frequency`of `80MHz`
+  * select the `Partition Scheme` of `No OTA (Large App)`
+
 ## Initialization Procedure
 
-Whenever the BLE-Scanner starts and is not able to connect to your WiFi (eg. because of a missing configuration), it enters the configuration mode.
+Whenever the BLE-Scanner starts and is not able to connect to your WiFi (eg. because of a missing configuration due to a fresh installation), it enters the configuration mode.
 In configuration mode the BLE-Scanner opens an WiFi Access Point with the SSID `BLE-Scanner-AP-XX:XX:XX`. Connect to it with your smartphone or notebook and configure at lease the WiFi settings. That restart the BLE-Scanner.
+
+To flash, open the sketch, build and upload to a connected ESP32. Then follow the **Initialization Procedure** above.
+
 
 ## What is in this respository?
 
@@ -31,16 +49,10 @@ In configuration mode the BLE-Scanner opens an WiFi Access Point with the SSID `
 
 This is the sketch for the ESP32 micro controller. Use the [ArduinoIDE](https://www.arduino.cc/en/main/software) to compile and upload into the ESP32 micro controller.
 
-Setup the Arduino IDE as follows:
-
-* install the ESP device support
-  ** Open the preferences in the Arduino IDE and add the following URLs to the _Additional Boards Manager URLs_ 
-   *** [https://dl.espressif.com/dl/package_esp32_index.json](https://dl.espressif.com/dl/package_esp32_index.json)
-   *** [http://arduino.esp8266.com/stable/package_esp8266com_index.json](http://arduino.esp8266.com/stable/package_esp8266com_index.json)
-  ** Open the _Boards Manager_ and search for `esp32`. Install the found library.  
-* select the Board TDO
-
-To flash, open the sketch, build and upload to a connected ESP32. Then follow the **Initialization Procedure** above.
+Follow the section **Prepare the build environtment** above, then open the sketch in the Arduino IDE to build and upload to a connected ESP32.
+Then follow the **Initialization Procedure** above.
 
 
 ### [Helper Script](scripts/)
+
+Thie directory holds some helper script.
