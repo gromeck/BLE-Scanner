@@ -23,7 +23,7 @@ The BLE-Scanner doesn't need any external circuit -- just flash the software on 
 ## Initialization Procedure
 
 Whenever the BLE-Scanner starts and is not able to connect to your WiFi (eg. because of a missing configuration), it enters the configuration mode.
-In configuration mode the BLE-Scanner opens an WiFi Access Point with the SSID _BLE-Scanner-AP-XX:XX:XX_. Connect to it with your smartphone or notebook and configure at lease the WiFi settings. That restart the BLE-Scanner.
+In configuration mode the BLE-Scanner opens an WiFi Access Point with the SSID `BLE-Scanner-AP-XX:XX:XX`. Connect to it with your smartphone or notebook and configure at lease the WiFi settings. That restart the BLE-Scanner.
 
 ## What is in this respository?
 
@@ -31,8 +31,16 @@ In configuration mode the BLE-Scanner opens an WiFi Access Point with the SSID _
 
 This is the sketch for the ESP32 micro controller. Use the [ArduinoIDE](https://www.arduino.cc/en/main/software) to compile and upload into the ESP32 micro controller.
 
-Use the following arduino setup:
+Setup the Arduino IDE as follows:
 
+* install the ESP device support
+  ** Open the preferences in the Arduino IDE and add the following URLs to the _Additional Boards Manager URLs_ 
+   *** [https://dl.espressif.com/dl/package_esp32_index.json](https://dl.espressif.com/dl/package_esp32_index.json)
+   *** [http://arduino.esp8266.com/stable/package_esp8266com_index.json](http://arduino.esp8266.com/stable/package_esp8266com_index.json)
+  ** Open the _Boards Manager_ and search for `esp32`. Install the found library.  
+* select the Board TDO
+
+To flash, open the sketch, build and upload to a connected ESP32. Then follow the **Initialization Procedure** above.
 
 
 ### [Helper Script](scripts/)
