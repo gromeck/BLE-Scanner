@@ -26,12 +26,12 @@
 #ifndef __WIFI_H__
 #define __WIFI_H__  1
 
-#include "config.h"
-#include "state.h"
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <WiFiClient.h>
 #include <DNSServer.h>
+#include "config.h"
+#include "state.h"
 
 extern WiFiClient _wifiClient;
 

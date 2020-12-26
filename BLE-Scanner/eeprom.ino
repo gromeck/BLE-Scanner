@@ -23,7 +23,7 @@
 
 */
 
-#include <EEPROM.h>
+#include "eeprom.h"
 
 static int _eeprom_size;
 

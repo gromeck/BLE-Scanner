@@ -26,8 +26,8 @@
 #ifndef __UTIL_H__
 #define __UTIL_H__ 1
 
+#include <Time.h>
 #include "wifi.h"
-#include "time.h"
 
 #if DBG
 /*

@@ -26,9 +26,9 @@
 #ifndef __NTP_H__
 #define __NTP_H__ 1
 
+#include <Time.h>
 #include "config.h"
 #include "util.h"
-#include "Time.h"
 
 /*
 **  ntp sync cycle

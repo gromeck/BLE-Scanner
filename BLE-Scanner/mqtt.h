@@ -26,8 +26,8 @@
 #ifndef __MQTT_H__
 #define __MQTT_H__ 1
 
-#include "config.h"
 #include <PubSubClient.h>
+#include "config.h"
 
 /*
    MQTT settings
