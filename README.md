@@ -26,7 +26,6 @@ To intall the ESP32 device support in the Arduino IDE, do as follows:
 
 * Open the preferences in the Arduino IDE and add the following URLs to the _Additional Boards Manager URLs_ 
   * [https://dl.espressif.com/dl/package_esp32_index.json](https://dl.espressif.com/dl/package_esp32_index.json)
-  * [http://arduino.esp8266.com/stable/package_esp8266com_index.json](http://arduino.esp8266.com/stable/package_esp8266com_index.json)
 * Open the _Boards Manager_ and search for `esp32`. Install the found library.  
 * Under `Tools`
   * select the Board `ESP32 Arduino` and your matching variant which was `WEMOS D1 MINI ESP32` in my case. This depends on the board you use.
@@ -34,6 +33,8 @@ To intall the ESP32 device support in the Arduino IDE, do as follows:
   * select the right `CPU Frequency` for your board
   * select the `Flash Frequency`of `80MHz`
   * select the `Partition Scheme` of `No OTA (Large App)`
+* Under `Tools` - `Manage Libraries` install the following libraries, if not yet installed:
+  * `PubSubClient` - see [https://pubsubclient.knolleary.net/](https://pubsubclient.knolleary.net/) for documentation
 
 ## Initialization Procedure
 
