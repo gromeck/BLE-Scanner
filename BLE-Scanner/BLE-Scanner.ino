@@ -32,7 +32,6 @@
 #include "ble.h"
 #include "state.h"
 #include "util.h"
-#include "git-version.h"
 
 void setup()
 {
@@ -41,11 +40,11 @@ void setup()
   */
   Serial.begin(115200);
   Serial.println();
+  LogMsg("*** " __TITLE__ " - Version " GIT_VERSION " ***");
 
   /*
      initialize the basic sub-systems
   */
-  LogMsg("*** " __TITLE__ " - Version " GIT_VERSION " ***");
   LedSetup(LED_MODE_ON);
   StateSetup(STATE_SCANNING);
   

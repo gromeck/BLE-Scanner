@@ -49,6 +49,21 @@ enum LED_MODE {
 #define LED_BLINK_RATE_SLOW(state)    ((state) ? 1000 : 1000)
 #define LED_BLINK_RATE_FAST(state)    ((state) ?  100  : 100)
 
+/*
+   setup the led
+*/
+void LedSetup(int led_mode);
+
+/*
+   do the cyclic update
+*/
+void LedUpdate(void);
+
+/*
+   set a new led mode
+*/
+void LedMode(int led_mode);
+
 #endif
 
 /**/

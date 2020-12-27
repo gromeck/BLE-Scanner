@@ -25,6 +25,7 @@
 
 #include "config.h"
 #include "state.h"
+#include "ble.h"
 #include "util.h"
 
 /*

@@ -26,6 +26,8 @@
 #ifndef __CONFIG_H__
 #define __CONFIG_H__ 1
 
+#include "git-version.h"
+
 /*
  * enable/disable features
  */

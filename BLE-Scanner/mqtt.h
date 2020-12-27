@@ -32,13 +32,13 @@
 /*
    MQTT settings
 */
-const int   MQTT_PORT_DEFAULT = 1883;
-const int   MQTT_PORT_MIN = 1024;
-const int   MQTT_PORT_MAX = 65535;
+#define MQTT_PORT_DEFAULT     1883
+#define MQTT_PORT_MIN         1024
+#define MQTT_PORT_MAX         65535
 
-const char *MQTT_TOPIC_ANNOUNCE = "/status";
-const char *MQTT_TOPIC_CONTROL = "/control";
-const char *MQTT_TOPIC_DEVICE = "/device";
+#define MQTT_TOPIC_ANNOUNCE   "/status"
+#define MQTT_TOPIC_CONTROL    "/control"
+#define MQTT_TOPIC_DEVICE     "/device"
 
 
 /*

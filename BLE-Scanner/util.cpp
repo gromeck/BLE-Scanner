@@ -54,7 +54,7 @@ IPAddress BytesToIPAddress(uint8_t *bytes)
 /*
 **    generic conversion
 */
-const char *AddressToString(byte *addr, int addrlen, bool dec)
+const char *AddressToString(byte *addr, int addrlen, bool dec,char sep)
 {
 #define ROTATE_BUFFER 4
   static int rotate = -1;
@@ -65,7 +65,8 @@ const char *AddressToString(byte *addr, int addrlen, bool dec)
 
   for (int n = 0; n < addrlen; n++) {
     len += sprintf(&str[len], (dec) ? "%d" : "%02X", addr[n]);
-    str[len++] = (dec) ? '.' : ':';
+    if (sep)
+      str[len++] = sep;
   }
   str[len - 1] = '\0';
 

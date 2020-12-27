@@ -65,95 +65,6 @@ void BleSetup(void)
   StateModifyTimeout(STATE_PAUSING, _config.ble.pause_time * 1000);
 }
 
-/*
-   Callback invoked when scanning has completed.
-*/
-static void BleScanComplete(BLEScanResults scanResults)
-{
-  LogMsg("BLE: finished scan -- Found %d device", scanResults.getCount());
-
-  LogMsg("BLE: %-17.17s  %4.4s  %-20.20s  %s", "MAC", "RSSI", "Name", "Vendor");
-  LogMsg("BLE: ---------------------------------------------------------------------");
-
-  for (int i = 0; i < scanResults.getCount(); i++) {
-    /*
-       loop over the result list
-    */
-    BLEAdvertisedDevice device = scanResults.getDevice(i);
-
-    /*
-       lookup the vendor
-    */
-    String MAC = String(device.getAddress().toString().c_str());
-    MAC.toUpperCase();
-    const byte *macaddr = StringToAddress((const char *) MAC.c_str(), MAC_ADDR_LEN, false);
-    const char *vendor = MacAddrLookup(macaddr);
-
-    LogMsg("BLE: %-17.17s  %4.4s  %-20.20s  %s",
-           MAC.c_str(),
-           device.haveRSSI() ? String(device.getRSSI()).c_str() : "-",
-           device.haveName() ? device.getName().c_str() : "-",
-           (vendor) ? vendor : "-");
-
-    /*
-      publish the result
-    */
-    time_t t = now();
-    MqttPublish(MAC + "/last_seen", String(t));
-    if (device.haveRSSI())
-      MqttPublish(MAC + "/rssi", String(device.getRSSI()));
-    if (device.haveName())
-      MqttPublish(MAC + "/name", String(device.getName().c_str()));
-    if (vendor)
-      MqttPublish(MAC + "/vendor", String(vendor));
-
-    /*
-       add the device to the list
-    */
-    BleDeviceListAdd(macaddr, device.getName().c_str(), device.getRSSI(), vendor);
-  }
-
-  /*
-     trigger the state machine
-  */
-  StateChange(STATE_PAUSING);
-}
-
-/*
-   initiate a BLE scan
-*/
-void BleStartScan(void)
-{
-  if (StateCheck(STATE_CONFIGURING))
-    return;
-
-  if (!_BleScan) {
-    /*
-       setup the bluetooth device
-    */
-    LogMsg("BLE: setting up bluetooth device");
-    BLEDevice::deinit(true);
-    BLEDevice::init(__TITLE__);
-
-    /*
-       init the scan object
-
-       NOTE: actice scans use more power, but get results faster
-    */
-    LogMsg("BLE: setting up scan object");
-    _BleScan = BLEDevice::getScan();
-    _BleScan->setActiveScan(true);
-  }
-
-  /*
-     initiate the scan
-
-     NOTE: the so far known devices will be dropped
-  */
-  LogMsg("BLE: starting scan");
-  _BleScan->start(_config.ble.scan_time - 1, BleScanComplete, false);
-}
-
 #if DBG
 static void dumpBLEList(const char *title)
 {
@@ -166,7 +77,7 @@ static void dumpBLEList(const char *title)
   for (BLE_DEVICE *device = _ble_device_list_first; device; device = device->next) {
     DbgMsg("BLE:%s: mac=%s  device=%p  next=%p  prev=%p  rssi=%d  name=%s  vendor=%s  last_seen=%lu",
            title,
-           AddressToString(device->mac, MAC_ADDR_LEN, false),
+           AddressToString(device->mac, MAC_ADDR_LEN, false,':'),
            device, device->next, device->prev,
            device->rssi,
            device->name,
@@ -258,6 +169,95 @@ bool BleDeviceListAdd(const byte * mac, const char *name, const int rssi, const 
 }
 
 /*
+   Callback invoked when scanning has completed.
+*/
+static void BleScanComplete(BLEScanResults scanResults)
+{
+  LogMsg("BLE: finished scan -- Found %d device", scanResults.getCount());
+
+  LogMsg("BLE: %-17.17s  %4.4s  %-20.20s  %s", "MAC", "RSSI", "Name", "Vendor");
+  LogMsg("BLE: ---------------------------------------------------------------------");
+
+  for (int i = 0; i < scanResults.getCount(); i++) {
+    /*
+       loop over the result list
+    */
+    BLEAdvertisedDevice device = scanResults.getDevice(i);
+
+    /*
+       lookup the vendor
+    */
+    String MAC = String(device.getAddress().toString().c_str());
+    MAC.toUpperCase();
+    const byte *macaddr = StringToAddress((const char *) MAC.c_str(), MAC_ADDR_LEN, false);
+    const char *vendor = MacAddrLookup(macaddr);
+
+    LogMsg("BLE: %-17.17s  %4.4s  %-20.20s  %s",
+           MAC.c_str(),
+           device.haveRSSI() ? String(device.getRSSI()).c_str() : "-",
+           device.haveName() ? device.getName().c_str() : "-",
+           (vendor) ? vendor : "-");
+
+    /*
+      publish the result
+    */
+    time_t t = now();
+    MqttPublish(MAC + "/last_seen", String(t));
+    if (device.haveRSSI())
+      MqttPublish(MAC + "/rssi", String(device.getRSSI()));
+    if (device.haveName())
+      MqttPublish(MAC + "/name", String(device.getName().c_str()));
+    if (vendor)
+      MqttPublish(MAC + "/vendor", String(vendor));
+
+    /*
+       add the device to the list
+    */
+    BleDeviceListAdd(macaddr, device.getName().c_str(), device.getRSSI(), vendor);
+  }
+
+  /*
+     trigger the state machine
+  */
+  StateChange(STATE_PAUSING);
+}
+
+/*
+   initiate a BLE scan
+*/
+void BleStartScan(void)
+{
+  if (StateCheck(STATE_CONFIGURING))
+    return;
+
+  if (!_BleScan) {
+    /*
+       setup the bluetooth device
+    */
+    LogMsg("BLE: setting up bluetooth device");
+    BLEDevice::deinit(true);
+    BLEDevice::init(__TITLE__);
+
+    /*
+       init the scan object
+
+       NOTE: actice scans use more power, but get results faster
+    */
+    LogMsg("BLE: setting up scan object");
+    _BleScan = BLEDevice::getScan();
+    _BleScan->setActiveScan(true);
+  }
+
+  /*
+     initiate the scan
+
+     NOTE: the so far known devices will be dropped
+  */
+  LogMsg("BLE: starting scan");
+  _BleScan->start(_config.ble.scan_time - 1, BleScanComplete, false);
+}
+
+/*
    return the last BLE scan list as HTML
 */
 String BleScanListHTML(void)
@@ -281,7 +281,7 @@ String BleScanListHTML(void)
        setup the list as HTML
     */
     html += "<tr>"
-            "<td>" + String(AddressToString(device->mac, MAC_ADDR_LEN, false)) + "</td>"
+            "<td>" + String(AddressToString(device->mac, MAC_ADDR_LEN, false,':')) + "</td>"
             "<td>" + String(device->rssi) + "</td>"
             "<td>" + String((device->name[0]) ? device->name : "-") + "</td>"
             "<td>" + String((device->vendor) ? device->vendor : "-") + "</td>"

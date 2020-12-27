@@ -71,18 +71,6 @@ static time_t _up_since = 0;
 static WiFiUDP _Udp;
 
 /*
-   initialize ntp
-*/
-static void NtpInit()
-{
-  if (_ntp_ip[0]) {
-    _Udp.begin(NTP_UDP_LOCAL_PORT);
-    setSyncInterval((unsigned int) NTP_SYNC_INTERVAL);
-    setSyncProvider(NtpSync);
-  }
-}
-
-/*
 **  send an NTP request to the time server at the given address
 **
 **  NOTE: function is called asynchronous, so don't use LogMsg or Serial!
@@ -152,6 +140,18 @@ static time_t NtpSync(void)
     delay(10);
   }
   return 0;
+}
+
+/*
+   initialize ntp
+*/
+static void NtpInit()
+{
+  if (_ntp_ip[0]) {
+    _Udp.begin(NTP_UDP_LOCAL_PORT);
+    setSyncInterval((unsigned int) NTP_SYNC_INTERVAL);
+    setSyncProvider(NtpSync);
+  }
 }
 
 /*

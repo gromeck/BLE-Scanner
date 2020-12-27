@@ -26,6 +26,8 @@
 #ifndef __MACADDR_H__
 #define __MACADDR_H__ 1
 
+#include "util.h"
+
 #define MAC_ADDR_LEN    6
 
 /*

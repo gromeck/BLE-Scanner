@@ -23,8 +23,10 @@
 
 */
 
+#include <Arduino.h>
 #include "config.h"
 #include "led.h"
+#include "util.h"
 
 static int _led_mode = LED_MODE_OFF;
 static bool _led_state = false;
