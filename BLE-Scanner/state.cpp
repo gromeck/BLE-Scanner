@@ -24,8 +24,8 @@
 */
 
 #include "config.h"
+#include "bluetooth.h"
 #include "state.h"
-#include "ble.h"
 #include "util.h"
 
 /*
@@ -48,13 +48,13 @@ static STATES _states[] = {
   /*
      pause time
   */
-  { STATE_PAUSING, STATE_SCANNING, BLE_PAUSE_TIME_MAX * 1000 },
+  { STATE_PAUSING, STATE_SCANNING, (BLUETOOTH_BLE_SCAN_TIME_MAX + BLUETOOTH_BTC_SCAN_TIME_MAX) * 1000 },
 
   /*
      normally the state will change from scanning to pausing upon finished scan,
      this entry is just to be sure
   */
-  { STATE_SCANNING, STATE_PAUSING, BLE_SCAN_TIME_MAX * 1000 },
+  { STATE_SCANNING, STATE_PAUSING, (BLUETOOTH_BLE_SCAN_TIME_MAX + BLUETOOTH_BTC_SCAN_TIME_MAX) * 1000 },
 
   /*
      in this state we will stay until reboot
