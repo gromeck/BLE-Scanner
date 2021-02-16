@@ -76,7 +76,7 @@ bool BlootoothDeviceListAdd(bluetooth_devtype devtype, const byte * mac, const c
   /*
      scan our list to check if this device is already known
   */
-  dumpBluetoothDeviceList("searching");
+  //dumpBluetoothDeviceList("searching");
   for (device = _bluetooth_device_list_first; device; device = device->next) {
     if (!memcmp(device->mac, mac, MAC_ADDR_LEN)) {
       /*
@@ -99,7 +99,7 @@ bool BlootoothDeviceListAdd(bluetooth_devtype devtype, const byte * mac, const c
     /*
        de-list this device
     */
-    dumpBluetoothDeviceList("before de-listing");
+    //dumpBluetoothDeviceList("before de-listing");
     if (device->prev)
       device->prev->next = device->next;
     if (device->next)
@@ -111,7 +111,7 @@ bool BlootoothDeviceListAdd(bluetooth_devtype devtype, const byte * mac, const c
     device->prev = NULL;
     device->next = NULL;
     _bluetooth_devices--;
-    dumpBluetoothDeviceList("after de-listing");
+    //dumpBluetoothDeviceList("after de-listing");
   }
   else {
     /*
@@ -126,7 +126,7 @@ bool BlootoothDeviceListAdd(bluetooth_devtype devtype, const byte * mac, const c
     /*
        put this device at the begining of the list
     */
-    dumpBluetoothDeviceList("before insert");
+    //dumpBluetoothDeviceList("before insert");
 
     if (_bluetooth_device_list_first)
       _bluetooth_device_list_first->prev = device;
@@ -149,7 +149,7 @@ bool BlootoothDeviceListAdd(bluetooth_devtype devtype, const byte * mac, const c
     device->last_seen = now();
     device->present = true;
 
-    dumpBluetoothDeviceList("after insert");
+    //dumpBluetoothDeviceList("after insert");
   }
 
   return (device) ? true : false;
