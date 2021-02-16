@@ -29,7 +29,7 @@
 #include "wifi.h"
 #include "mqtt.h"
 #include "ntp.h"
-#include "ble.h"
+#include "bluetooth.h"
 
 /*
    the web server object
@@ -90,7 +90,7 @@ void HttpSetup(void)
                     "<form action='/info' method='get'><button>Information</button></form><p>"
                     "<form action='/restart' method='get' onsubmit=\"return confirm('Are you sure to restart the device?');\"><button class='button redbg'>Restart</button></form><p>"
                     "<p>"
-                    "<form action='/ble' method='get'><button>BLE Scan List</button></form><p>"
+                    "<form action='/btlist' method='get'><button>Bluetooth Scan List</button></form><p>"
                     + _html_footer);
   });
 
@@ -99,17 +99,26 @@ void HttpSetup(void)
     _WebServer.send(200, "text/css",
                     "html, body { background:#ffffff; }"
                     "body { margin:1rem; padding:0; font-familiy:'sans-serif'; color:#202020; text-align:center; font-size:1rem; }"
-                    "input { width:100%; font-size:1rem; }"
+                    "input { width:100%; font-size:1rem; box-sizing: border-box; -webkit-box-sizing: border-box; }"
+                    "input[type=radio] { width:2rem; }"
                     "button { border: 0; border-radius: 0.3rem; background: #1881ba; color: #ffffff; line-height: 2.4rem; font-size: 1.2rem; width: 100%; -webkit-transition-duration: 0.5s; transition-duration: 0.5s; cursor: pointer; opacity:0.8; }"
                     "button:hover { opacity: 1.0; }"
                     ".header { text-align:center; }"
                     ".content { text-align:left; display:inline-block; color:#000000; min-width:340px; }"
                     ".msg { text-align:center; color:#be3731; font-weight:bold; padding:5rem 0; }"
-                    ".blescanlist { padding:0; margin:0; width: 100%; }"
-                    ".blescanlist tr td { font-familiy:'monospace'; }"
-                    ".blescanlist tr td { padding:4px; }"
-                    ".blescanlist tr:nth-child(even) { background: #c0c0c0; }"
-                    ".blescanlist tr:nth-child(odd) {background: #ffffff; }"
+                    ".devinfo { padding:0; margin:0; border-spacing:0; width: 100%; }"
+                    ".devinfo tr th { background: #c0c0c0; font-weight:bold; }"
+                    ".devinfo tr td { font-familiy:'monospace'; }"
+                    ".devinfo tr td:first-child { font-weight:bold; }"
+                    ".devinfo tr td, .devinfo tr th { padding:4px; }"
+                    ".devinfo tr:nth-child(even) { background: #f0f0f0; }"
+                    ".devinfo tr:nth-child(odd) {background: #ffffff; }"
+                    ".btscanlist { padding:0; margin:0; border-spacing:0; width: 100%; }"
+                    ".btscanlist tr th { background: #c0c0c0; font-weight:bold; }"
+                    ".btscanlist tr td { font-familiy:'monospace'; }"
+                    ".btscanlist tr td, .btscanlist tr th { padding:4px; }"
+                    ".btscanlist tr:nth-child(even) { background: #f0f0f0; }"
+                    ".btscanlist tr:nth-child(odd) {background: #ffffff; }"
                     ".footer { text-align:right; }"
                     ".greenbg { background: #348f4b; }"
                     ".redbg { background: #a12828; }"
@@ -135,6 +144,7 @@ void HttpSetup(void)
       */
 #define CHECK_AND_SET_STRING(type,name) { if (_WebServer.hasArg(#type "_" #name)) strncpy(_config.type.name,_WebServer.arg(#type "_" #name).c_str(),sizeof(_config.type.name) - 1); }
 #define CHECK_AND_SET_NUMBER(type,name,minimum,maximum) { if (_WebServer.hasArg(#type "_" #name)) _config.type.name = min(max(atoi(_WebServer.arg(#type "_" #name).c_str()),(minimum)),(maximum)); }
+#define CHECK_AND_SET_BOOL(type,name) { if (_WebServer.hasArg(#type "_" #name)) _config.type.name = (atoi(_WebServer.arg(#type "_" #name).c_str())) ? true : false; }
       CHECK_AND_SET_STRING(device, name);
       CHECK_AND_SET_STRING(device, password);
       CHECK_AND_SET_STRING(wifi, ssid);
@@ -146,8 +156,11 @@ void HttpSetup(void)
       CHECK_AND_SET_STRING(mqtt, password);
       CHECK_AND_SET_STRING(mqtt, clientID);
       CHECK_AND_SET_STRING(mqtt, topicPrefix);
-      CHECK_AND_SET_NUMBER(ble, scan_time, BLE_SCAN_TIME_MIN, BLE_SCAN_TIME_MAX);
-      CHECK_AND_SET_NUMBER(ble, pause_time, BLE_PAUSE_TIME_MIN, BLE_PAUSE_TIME_MAX);
+      CHECK_AND_SET_NUMBER(bluetooth, btc_scan_time, BLUETOOTH_BTC_SCAN_TIME_MIN, BLUETOOTH_BTC_SCAN_TIME_MAX);
+      CHECK_AND_SET_NUMBER(bluetooth, ble_scan_time, BLUETOOTH_BLE_SCAN_TIME_MIN, BLUETOOTH_BLE_SCAN_TIME_MAX);
+      CHECK_AND_SET_NUMBER(bluetooth, pause_time, BLUETOOTH_PAUSE_TIME_MIN, BLUETOOTH_PAUSE_TIME_MAX);
+      CHECK_AND_SET_NUMBER(bluetooth, absence_cycles, BLUETOOTH_ABSENCE_CYCLES_MIN, BLUETOOTH_ABSENCE_CYCLES_MAX);
+      CHECK_AND_SET_BOOL(bluetooth, publish_absence);
 
       /*
          write the config back
@@ -161,7 +174,7 @@ void HttpSetup(void)
                     "<form action='/config/wifi' method='get'><button>Configure WiFi</button></form><p>"
                     "<form action='/config/ntp' method='get'><button>Configure NTP</button></form><p>"
                     "<form action='/config/mqtt' method='get'><button>Configure MQTT</button></form><p>"
-                    "<form action='/config/ble' method='get'><button>Configure BLE Scan</button></form><p>"
+                    "<form action='/config/bluetooth' method='get'><button>Configure Bluetooth</button></form><p>"
                     "<form action='/config/reset' method='get' onsubmit=\"return confirm('Are you sure to reset the configuration?');\"><button class='button redbg'>Reset configuration</button></form><p>"
                     "<p><form action='/' method='get'><button>Main Menu</button></form><p>"
                     + _html_footer);
@@ -171,24 +184,29 @@ void HttpSetup(void)
     _last_request = millis();
     _WebServer.send(200, "text/html",
                     _html_header +
-                    "<form method='get' action='/config'>"
                     "<fieldset>"
                     "<legend>"
                     "<b>&nbsp;Device&nbsp;</b>"
                     "</legend>"
+                    "<form method='get' action='/config'>"
+
+                    "<p>"
                     "<b>Name</b>"
                     "<br>"
                     "<input name='device_name' type='text' placeholder='Device name' value='" + String(_config.device.name) + "'>"
+                    "</p>"
+
                     "<p>"
                     "<b>Web Password</b>"
                     "<br>"
                     "<input name='device_password' type='password' placeholder='Device Password' value='" + String(_config.device.password) + "'>"
-                    "<p>"
+                    "<br>"
                     "<b>Note:</b> username for authentication is <b>" HTTP_WEB_USER "</b>"
-                    "<p>"
+                    "</p>"
+
                     "<button name='save' type='submit' class='button greenbg'>Speichern</button>"
-                    "</fieldset>"
                     "</form>"
+                    "</fieldset>"
                     "<p><form action='/config' method='get'><button>Configuration Menu</button></form><p>"
                     + _html_footer);
   });
@@ -197,22 +215,27 @@ void HttpSetup(void)
     _last_request = millis();
     _WebServer.send(200, "text/html",
                     _html_header +
-                    "<form method='get' action='/config'>"
                     "<fieldset>"
                     "<legend>"
                     "<b>&nbsp;WiFi&nbsp;</b>"
                     "</legend>"
+                    "<form method='get' action='/config'>"
+
+                    "<p>"
                     "<b>SSID</b>"
                     "<br>"
                     "<input name='wifi_ssid' type='text' placeholder='WiFi SSID' value='" + String(_config.wifi.ssid) + "'>"
+                    "</p>"
+
                     "<p>"
                     "<b>Password</b>"
                     "<br>"
                     "<input name='wifi_psk' type='password' placeholder='WiFi Password' value='" + String(_config.wifi.psk) + "'>"
-                    "<p>"
+                    "</p>"
+
                     "<button name='save' type='submit' class='button greenbg'>Speichern</button>"
-                    "</fieldset>"
                     "</form>"
+                    "</fieldset>"
                     "<p><form action='/config' method='get'><button>Configuration Menu</button></form><p>"
                     + _html_footer);
   });
@@ -221,18 +244,21 @@ void HttpSetup(void)
     _last_request = millis();
     _WebServer.send(200, "text/html",
                     _html_header +
-                    "<form method='get' action='/config'>"
                     "<fieldset>"
                     "<legend>"
                     "<b>&nbsp;NTP&nbsp;</b>"
                     "</legend>"
-                    "<b>Server</b>"
+                    "<form method='get' action='/config'>"
+
+                    "<p>"
+                    "<b>Server Name or IP Address</b>"
                     "<br>"
                     "<input name='ntp_server' type='text' placeholder='NTP server' value='" + String(_config.ntp.server) + "'>"
-                    "<p>"
+                    "</p>"
+                    
                     "<button name='save' type='submit' class='button greenbg'>Speichern</button>"
-                    "</fieldset>"
                     "</form>"
+                    "</fieldset>"
                     "<p><form action='/config' method='get'><button>Configuration Menu</button></form><p>"
                     + _html_footer);
   });
@@ -241,62 +267,104 @@ void HttpSetup(void)
     _last_request = millis();
     _WebServer.send(200, "text/html",
                     _html_header +
-                    "<form method='get' action='/config'>"
                     "<fieldset>"
                     "<legend>"
                     "<b>&nbsp;MQTT&nbsp;</b>"
                     "</legend>"
-                    "<b>Server</b>"
+                    "<form method='get' action='/config'>"
+
+                                        "<p>"
+                    "<b>Server Name or IP Address</b>"
                     "<br>"
                     "<input name='mqtt_server' type='text' placeholder='MQTT server' value='" + String(_config.mqtt.server) + "'>"
+                    "</p>"
+
                     "<p>"
                     "<b>Port</b>"
                     "<br>"
                     "<input name='mqtt_port' type='text' placeholder='MQTT port' value='" + String(_config.mqtt.port) + "'>"
+                    "</p>"
+                    
                     "<p>"
                     "<b>User (optional)</b>"
                     "<br>"
                     "<input name='mqtt_user' type='text' placeholder='MQTT user' value='" + String(_config.mqtt.user) + "'>"
-                    "<p>"
+                    "</p>"
+
+                                        "<p>"
                     "<b>Password (optional)</b>"
                     "<br>"
                     "<input name='mqtt_password' type='text' placeholder='MQTT password' value='" + String(_config.mqtt.password) + "'>"
-                    "<p>"
-                    "<b>ClientID</b>"
+                    "</p>"
+
+                                        "<p>"
+                    "<b>Client ID</b>"
                     "<br>"
                     "<input name='mqtt_clientID' type='text' placeholder='MQTT ClientID' value='" + String(_config.mqtt.clientID) + "'>"
+                    "</p>"
+                    
                     "<p>"
-                    "<b>TopicPrefix</b>"
+                    "<b>Topic Prefix</b>"
                     "<br>"
                     "<input name='mqtt_topicPrefix' type='text' placeholder='MQTT Topic Prefix' value='" + String(_config.mqtt.topicPrefix) + "'>"
-                    "<p>"
+                    "</p>"
+                    
                     "<button name='save' type='submit' class='button greenbg'>Speichern</button>"
-                    "</fieldset>"
                     "</form>"
+                    "</fieldset>"
                     "<p><form action='/config' method='get'><button>Configuration Menu</button></form><p>"
                     + _html_footer);
   });
 
-  _WebServer.on("/config/ble", []() {
+  _WebServer.on("/config/bluetooth", []() {
     _last_request = millis();
     _WebServer.send(200, "text/html",
                     _html_header +
-                    "<form method='get' action='/config'>"
                     "<fieldset>"
                     "<legend>"
-                    "<b>&nbsp;BLE&nbsp;</b>"
+                    "<b>&nbsp;Bluetooth&nbsp;</b>"
                     "</legend>"
-                    "<b>Scan Time (" + BLE_SCAN_TIME_MIN + "s - " + BLE_SCAN_TIME_MAX + "s)</b>"
-                    "<br>"
-                    "<input name='ble_scan_time' type='text' placeholder='BLE scan time' value='" + String(_config.ble.scan_time) + "'>"
+                    "<form method='get' action='/config'>"
+
                     "<p>"
-                    "<b>Pause Time (" + BLE_PAUSE_TIME_MIN + "s - " + BLE_PAUSE_TIME_MAX + "s)</b>"
+                    "<b>Classic Scan Time (" + BLUETOOTH_BTC_SCAN_TIME_MIN + "s - " + BLUETOOTH_BTC_SCAN_TIME_MAX + "s; 0=off)</b>"
                     "<br>"
-                    "<input name='ble_pause_time' type='text' placeholder='BLE pause time' value='" + String(_config.ble.pause_time) + "'>"
+                    "<input name='bluetooth_btc_scan_time' type='text' placeholder='Bluetooth Classic scan time' value='" + String(_config.bluetooth.btc_scan_time) + "'>"
+                    "</p>"
+
                     "<p>"
+                    "<b>LE Scan Time (" + BLUETOOTH_BLE_SCAN_TIME_MIN + "s - " + BLUETOOTH_BLE_SCAN_TIME_MAX + "s; 0=off)</b>"
+                    "<br>"
+                    "<input name='bluetooth_ble_scan_time' type='text' placeholder='Bluetooth BLE scan time' value='" + String(_config.bluetooth.ble_scan_time) + "'>"
+                    "</p>"
+
+                    "<p>"
+                    "<b>Pause Time (" + BLUETOOTH_PAUSE_TIME_MIN + "s - " + BLUETOOTH_PAUSE_TIME_MAX + "s)</b>"
+                    "<br>"
+                    "<input name='bluetooth_pause_time' type='text' placeholder='Bluetooth pause time' value='" + String(_config.bluetooth.pause_time) + "'>"
+                    "</p>"
+
+                    "<p>"
+                    "<b>Absence Timeout Cycles (" + BLUETOOTH_ABSENCE_CYCLES_MIN + " - " + BLUETOOTH_ABSENCE_CYCLES_MAX + ")</b>"
+                    "<br>"
+                    "<input name='bluetooth_absence_cycles' type='text' placeholder='Bluetooth absence timeout cycles' value='" + String(_config.bluetooth.absence_cycles) + "'>"
+                    "<br>"
+                    "<b>Note:</b> One cycle is the sum of the time values above."
+                    "</p>"
+
+                    "<p>"
+                    "<b>MQTT Publishing of Presence &amp; Absence</b>"
+                    "<br>"
+                    "<input name='bluetooth_publish_absence' type='radio' value='0'" + (_config.bluetooth.publish_absence ? "" : " checked") + "> Publish only presence" +
+                    "<br>"
+                    "<input name='bluetooth_publish_absence' type='radio' value='1'" + (_config.bluetooth.publish_absence ? " checked" : "") + "> Publish presence &amp; absence" +
+                    "<br>"
+                    "<b>Note:</b> Selecting <i>Publish only presence</i> might help if multiple scanners are publishing to the same object."
+                    "</p>"
+
                     "<button name='save' type='submit' class='button greenbg'>Speichern</button>"
-                    "</fieldset>"
                     "</form>"
+                    "</fieldset>"
                     "<p><form action='/config' method='get'><button>Configuration Menu</button></form><p>"
                     + _html_footer);
   });
@@ -335,83 +403,102 @@ void HttpSetup(void)
     _WebServer.send(200, "text/html",
                     _html_header +
                     "<div class='info'>"
-                    "<table style='width:100%'"
+                    "<table class='devinfo'>"
+
+                    "<tr><th colspan=2>Device</th></tr>"
                     "<tr>"
-                    "<th>" __TITLE__ " Version</th>"
+                    "<td>SW Version</td>"
                     "<td>" GIT_VERSION "</td>"
                     "</tr>"
                     "<tr>"
-                    "<th>Build Date</th>"
+                    "<td>SW Build Date</td>"
                     "<td>" __DATE__ " " __TIME__ "</td>"
                     "</tr>"
                     "<tr>"
-                    "<th>Device Name</th>"
+                    "<td>Device Name</td>"
                     "<td>" + String(_config.device.name) + "</td>"
                     "</tr>"
                     "<tr>"
-                    "<th>Up since</th>"
+                    "<td>Up since</td>"
                     "<td>" + String(TimeToString(NtpUpSince())) + "</td>"
                     "</tr>"
-                    "<tr><th></th><td>&nbsp;</td></tr>"
+
+                    "<tr><th colspan=2>WiFi</th></tr>"
                     "<tr>"
-                    "<th>WiFi SSID</th>"
+                    "<td>SSID</td>"
                     "<td>" + WifiGetSSID() + "</td>"
                     "</tr>"
                     "<tr>"
-                    "<th>WiFi RSSI</th>"
+                    "<td>RSSI</td>"
                     "<td>" + String(WIFI_RSSI_TO_QUALITY(WifiGetRSSI())) + "% (" + WifiGetRSSI() + "dBm)</td>"
                     "</tr>"
                     "<tr>"
-                    "<th>WiFi MAC</th>"
+                    "<td>MAC</td>"
                     "<td>" + WifiGetMacAddr() + "</td>"
                     "</tr>"
                     "<tr>"
-                    "<th>WiFi Vendor</th>"
+                    "<td>Vendor</td>"
                     "<td>" + String(MacAddrLookup(StringToAddress((const char *) WifiGetMacAddr().c_str(), MAC_ADDR_LEN, false))) + "</td>"
                     "</tr>"
                     "<tr>"
-                    "<th>WiFi IP Address</th>"
+                    "<td>IP Address</td>"
                     "<td>" + WifiGetIpAddr() + "</td>"
                     "</tr>"
-                    "<tr><th></th><td>&nbsp;</td></tr>"
+
+                    "<tr><th colspan=2>WiFi</th></tr>"
                     "<tr>"
-                    "<th>NTP Server</th>"
+                    "<td>Server</td>"
                     "<td>" + _config.ntp.server + "</td>"
                     "</tr>"
-                    "<tr><th></th><td>&nbsp;</td></tr>"
+
+                    "<tr><th colspan=2>MQTT</th></tr>"
                     "<tr>"
-                    "<th>MQTT Host</th>"
+                    "<td>Host</td>"
                     "<td>" + _config.mqtt.server + "</td>"
                     "</tr>"
                     "<tr>"
-                    "<th>MQTT Port</th>"
+                    "<td>Port</td>"
                     "<td>" + _config.mqtt.port + "</td>"
                     "</tr>"
                     "<tr>"
-                    "<th>MQTT User</th>"
+                    "<td>User</td>"
                     "<td>" + _config.mqtt.user + "</td>"
                     "</tr>"
                     "<tr>"
-                    "<th>MQTT Password</th>"
+                    "<td>Password</td>"
                     "<td>" + _config.mqtt.password + "</td>"
                     "</tr>"
                     "<tr>"
-                    "<th>MQTT ClientID</th>"
+                    "<td>ClientID</td>"
                     "<td>" + _config.mqtt.clientID + "</td>"
                     "</tr>"
                     "<tr>"
-                    "<th>MQTT Topic Prefix</th>"
+                    "<td>Topic Prefix</td>"
                     "<td>" + _config.mqtt.topicPrefix + "</td>"
                     "</tr>"
-                    "<tr><th></th><td>&nbsp;</td></tr>"
+
+                    "<tr><th colspan=2>Bluetooth</th></tr>"
                     "<tr>"
-                    "<th>BLE Scan Time</th>"
-                    "<td>" + _config.ble.scan_time + "</td>"
+                    "<td>Classic Scan Time</td>"
+                    "<td>" + _config.bluetooth.btc_scan_time + "</td>"
                     "</tr>"
                     "<tr>"
-                    "<th>BLE Pause Time</th>"
-                    "<td>" + _config.ble.pause_time + "</td>"
+                    "<td>LE Scan Time</td>"
+                    "<td>" + _config.bluetooth.ble_scan_time + "</td>"
                     "</tr>"
+                    "<tr>"
+                    "<td>Scan Pause Time</td>"
+                    "<td>" + _config.bluetooth.pause_time + "</td>"
+                    "</tr>"
+                    "<tr>"
+                    "<td>Absence Timeout Cycle</td>"
+                    "<td>" + _config.bluetooth.absence_cycles + "</td>"
+                    "</tr>"
+                    "<tr>"
+                    "<td>MQTT Publishing of Presence & Absence</td>"
+                    "<td>" + (_config.bluetooth.publish_absence ? "presence &amp; absence" : "only presence") + "</td>"
+                    "</tr>"
+
                     "</table>"
                     "</div>"
                     "<p><form action='/' method='get'><button>Main Menu</button></form><p>"
@@ -437,12 +524,12 @@ void HttpSetup(void)
     StateChange(STATE_WAIT_BEFORE_REBOOTING);
   });
 
-  _WebServer.on("/ble", []() {
+  _WebServer.on("/btlist", []() {
     _last_request = millis();
     _WebServer.send(200, "text/html",
                     _html_header +
-                    BleScanListHTML() +
-                    "<p><form action='/ble' method='get'><button class='button greenbg'>Reload</button></form><p>"
+                    BluetoothScanListHTML() +
+                    "<p><form action='/btlist' method='get'><button class='button greenbg'>Reload</button></form><p>"
                     "<p><form action='/' method='get'><button>Main Menu</button></form><p>"
                     + _html_footer);
   });
