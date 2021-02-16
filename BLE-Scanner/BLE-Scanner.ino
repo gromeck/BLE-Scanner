@@ -29,9 +29,11 @@
 #include "ntp.h"
 #include "http.h"
 #include "mqtt.h"
-#include "ble.h"
+//#include "ble.h"
 #include "state.h"
 #include "util.h"
+#include "bluetooth.h"
+#include <esp_task_wdt.h>
 
 void setup()
 {
@@ -42,14 +44,22 @@ void setup()
   Serial.println();
   LogMsg("*** " __TITLE__ " - Version " GIT_VERSION " ***");
 
+
+  /*
+   * initialize the watchdog
+   * 
+   * the default timeout (5s) might be top short in debug mode
+   */
+  esp_task_wdt_init(30,true);
+  
   /*
      initialize the basic sub-systems
   */
   LedSetup(LED_MODE_ON);
   StateSetup(STATE_SCANNING);
-  
+
   if (!ConfigSetup())
-      StateChange(STATE_CONFIGURING);
+    StateChange(STATE_CONFIGURING);
 
   if (!WifiSetup()) {
     /*
@@ -67,9 +77,10 @@ void setup()
   NtpSetup();
   HttpSetup();
   MqttSetup();
+#if 0
   BleSetup();
-
-  delay(1000);
+#endif
+  BluetoothSetup();
 }
 
 void loop()
@@ -83,6 +94,7 @@ void loop()
   NtpUpdate();
   HttpUpdate();
   MqttUpdate();
+  BluetoothUpdate();
 
   /*
      what to do?
@@ -93,7 +105,7 @@ void loop()
          start the scanner
       */
       LedSetup(LED_MODE_BLINK_SLOW);
-      BleStartScan();
+      BluetoothStartScan();
       break;
     case STATE_PAUSING:
       /*
