@@ -45,7 +45,7 @@
   tags to mark the configuration in the EEPROM
 */
 #define CONFIG_MAGIC      __TITLE__ "-CONFIG"
-#define CONFIG_VERSION    2
+#define CONFIG_VERSION    3
 
 /*
    sub-systems config structs
@@ -75,11 +75,14 @@ typedef struct _config_mqtt {
   char reserved[192];
 } CONFIG_MQTT;
 
-typedef struct _config_ble {
-  int scan_time;
+typedef struct _config_bluetooth {
+  int btc_scan_time;
+  int ble_scan_time;
   int pause_time;
-  char reserverd[256];
-} CONFIG_BLE;
+  int absence_cycles;
+  bool publish_absence;
+  char reserverd[252];
+} CONFIG_BT;
 
 /*
    the configuration layout
@@ -91,7 +94,7 @@ typedef struct _config {
   CONFIG_WIFI wifi;
   CONFIG_NTP ntp;
   CONFIG_MQTT mqtt;
-  CONFIG_BLE ble;
+  CONFIG_BT bluetooth;
 } CONFIG;
 
 /*
