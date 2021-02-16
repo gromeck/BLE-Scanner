@@ -35,6 +35,7 @@ static PubSubClient *_mqtt;
 static String _topic_announce;
 static String _topic_control;
 static String _topic_device;
+static unsigned long _mqtt_reconnect_wait = 0;
 
 /*
    initialize the MQTT context
@@ -42,11 +43,11 @@ static String _topic_device;
 void MqttSetup(void)
 {
   /*
-   * check and correct the config
-   */
+     check and correct the config
+  */
   if (!_config.mqtt.port)
     _config.mqtt.port = MQTT_PORT_DEFAULT;
-  _config.mqtt.port = min(max(_config.mqtt.port,MQTT_PORT_MIN),MQTT_PORT_MAX);
+  _config.mqtt.port = min(max(_config.mqtt.port, MQTT_PORT_MIN), MQTT_PORT_MAX);
 
   if (StateCheck(STATE_CONFIGURING))
     return;
@@ -76,40 +77,42 @@ void MqttUpdate(void)
     return;
 
   if (!_mqtt->connected()) {
-    /*
-       connect the MQTT server
-    */
-    LogMsg("MQTT: reconnecting %s:%s@%s:%d width clientID %s ...", _config.mqtt.user, _config.mqtt.password, _config.mqtt.server, _config.mqtt.port, _config.mqtt.clientID);
-    bool connect_status = _mqtt->connect(
-                            _config.mqtt.clientID,
-                            _config.mqtt.user,
-                            _config.mqtt.password,
-                            _topic_announce.c_str(),
-                            2,  // willQoS
-                            true,  // willRetain
-                            "{ \"state\":\"disconnected\" }");
-
-    DbgMsg("MQTT: connect_status=%d", connect_status);
-
-    if (connect_status) {
-      DbgMsg("MQTT: connected");
+    if (millis() > _mqtt_reconnect_wait) {
       /*
-         publish our connection state
+         connect the MQTT server
       */
-      DbgMsg("MQTT: publishing connection state");
-      _mqtt->publish((_topic_announce + "/state").c_str(), "connected", true);
-      _mqtt->publish((_topic_announce + "/ssid").c_str(), WifiGetSSID().c_str(), true);
-      _mqtt->publish((_topic_announce + "/ipaddr").c_str(), WifiGetIpAddr().c_str(), true);
+      LogMsg("MQTT: reconnecting %s:%s@%s:%d width clientID %s ...", _config.mqtt.user, _config.mqtt.password, _config.mqtt.server, _config.mqtt.port, _config.mqtt.clientID);
+      bool connect_status = _mqtt->connect(
+                              _config.mqtt.clientID,
+                              _config.mqtt.user,
+                              _config.mqtt.password,
+                              _topic_announce.c_str(),
+                              2,  // willQoS
+                              true,  // willRetain
+                              "{ \"state\":\"disconnected\" }");
 
-      // ... and resubscribe
-      _mqtt->subscribe(_topic_control.c_str());
-    }
-    else {
-      /*
-         connection failed
-      */
-      LogMsg("MQTT: connection failed, rc=%d -- trying again in 5 seconds", _mqtt->state());
-      delay(5000);
+      DbgMsg("MQTT: connect_status=%d", connect_status);
+
+      if (connect_status) {
+        DbgMsg("MQTT: connected");
+        /*
+           publish our connection state
+        */
+        DbgMsg("MQTT: publishing connection state");
+        _mqtt->publish((_topic_announce + "/state").c_str(), "connected", true);
+        _mqtt->publish((_topic_announce + "/ssid").c_str(), WifiGetSSID().c_str(), true);
+        _mqtt->publish((_topic_announce + "/ipaddr").c_str(), WifiGetIpAddr().c_str(), true);
+
+        // ... and resubscribe
+        _mqtt->subscribe(_topic_control.c_str());
+      }
+      else {
+        /*
+           connection failed
+        */
+        LogMsg("MQTT: connection failed, rc=%d -- trying again in %d seconds", _mqtt->state(), MQTT_WAIT_TO_RECONNECT);
+        _mqtt_reconnect_wait = millis() + MQTT_WAIT_TO_RECONNECT * 1000;
+      }
     }
   }
   else
