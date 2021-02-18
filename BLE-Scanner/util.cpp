@@ -115,7 +115,7 @@ void dump(String title, const void *addr, const int len)
 
     while (dump_hex.length() < BYTES_PER_ROW * 3 + 1)
       dump_hex += " ";
-    String dump = "DUMP: " + title + ": " + dump_offset + dump_hex + "  " + dump_ascii;
+    String dump = title + ": " + dump_offset + dump_hex + "  " + dump_ascii;
     LogMsg(dump.c_str());
   }
 }

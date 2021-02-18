@@ -38,7 +38,7 @@ typedef struct _macaddr {
    array of known mac address with their vendors
 */
 static const MACADDR _macaddrs[] PROGMEM = {
-#include "macaddr-list.h"
+//#include "macaddr-list.h"
   { 0, 0 }
 };
 
@@ -66,9 +66,11 @@ static int maccmp(const byte *a, const byte *b)
 */
 void MacAddrSetup(void)
 {
+#if DBG_MAC
   DbgMsg("MAC: sizeof lookup table entry: %d", sizeof(MACADDR));
   DbgMsg("MAC: sizeof lookup table: %d", sizeof(_macaddrs));
   DbgMsg("MAC: length of lookup table: %d", MACADDR_LIST_LENGTH);
+#endif
 }
 
 /*
@@ -76,7 +78,9 @@ void MacAddrSetup(void)
 */
 const char *MacAddrLookup(const byte *mac)
 {
+#if DBG_MAC
   DbgMsg("MAC: looking up %02x:%02x:%02x", mac[0], mac[1], mac[2]);
+#endif
 
   int low = 0;
   int high = MACADDR_LIST_LENGTH - 1;
@@ -92,6 +96,8 @@ const char *MacAddrLookup(const byte *mac)
     else
       return _macaddrs[mid].vendor;
   }
+#if DBG_MAC
   DbgMsg("MAC: nothing found");
+#endif
   return NULL;
 }/**/

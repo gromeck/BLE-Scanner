@@ -30,6 +30,7 @@
 #include "mqtt.h"
 #include "ntp.h"
 #include "bluetooth.h"
+#include "scandev.h"
 
 /*
    the web server object
@@ -77,7 +78,7 @@ void HttpSetup(void)
   /*
      get the current config as a duplicate
   */
-  ConfigGet(0, sizeof(CONFIG), &_config);
+  ConfigGet(0, sizeof(CONFIG_T), &_config);
 
   _WebServer.onNotFound( []() {
     _last_request = millis();
@@ -133,7 +134,7 @@ void HttpSetup(void)
     /*
        handle configuration changes
     */
-#if DBG
+#if DBG_HTTP
     for (int n = 0; n < _WebServer.args(); n++ )
       LogMsg("HTTP: args: %s=%s", _WebServer.argName(n).c_str(), _WebServer.arg(n).c_str());
 #endif
@@ -143,7 +144,7 @@ void HttpSetup(void)
          take over the configuration parameters
       */
 #define CHECK_AND_SET_STRING(type,name) { if (_WebServer.hasArg(#type "_" #name)) strncpy(_config.type.name,_WebServer.arg(#type "_" #name).c_str(),sizeof(_config.type.name) - 1); }
-#define CHECK_AND_SET_NUMBER(type,name,minimum,maximum) { if (_WebServer.hasArg(#type "_" #name)) _config.type.name = min(max(atoi(_WebServer.arg(#type "_" #name).c_str()),(minimum)),(maximum)); }
+#define CHECK_AND_SET_NUMBER(type,name,minimum,maximum) { if (_WebServer.hasArg(#type "_" #name)) _config.type.name = CHECK_RANGE(atoi(_WebServer.arg(#type "_" #name).c_str()),(minimum),(maximum)); }
 #define CHECK_AND_SET_BOOL(type,name) { if (_WebServer.hasArg(#type "_" #name)) _config.type.name = (atoi(_WebServer.arg(#type "_" #name).c_str())) ? true : false; }
       CHECK_AND_SET_STRING(device, name);
       CHECK_AND_SET_STRING(device, password);
@@ -161,11 +162,18 @@ void HttpSetup(void)
       CHECK_AND_SET_NUMBER(bluetooth, pause_time, BLUETOOTH_PAUSE_TIME_MIN, BLUETOOTH_PAUSE_TIME_MAX);
       CHECK_AND_SET_NUMBER(bluetooth, absence_cycles, BLUETOOTH_ABSENCE_CYCLES_MIN, BLUETOOTH_ABSENCE_CYCLES_MAX);
       CHECK_AND_SET_BOOL(bluetooth, publish_absence);
+      CHECK_AND_SET_NUMBER(bluetooth, publish_timeout, BLUETOOTH_PUBLISH_TIMEOUT_MIN, BLUETOOTH_PUBLISH_TIMEOUT_MAX);
+      CHECK_AND_SET_NUMBER(bluetooth, activescan_timeout, BLUETOOTH_ACTIVESCAN_TIMEOUT_MIN, BLUETOOTH_ACTIVESCAN_TIMEOUT_MAX);
 
       /*
          write the config back
       */
-      ConfigSet(0, sizeof(CONFIG), &_config);
+      ConfigSet(0, sizeof(CONFIG_T), &_config);
+
+      /*
+         activate the new settings
+      */
+      BluetoothSetup();
     }
 
     _WebServer.send(200, "text/html",
@@ -255,7 +263,7 @@ void HttpSetup(void)
                     "<br>"
                     "<input name='ntp_server' type='text' placeholder='NTP server' value='" + String(_config.ntp.server) + "'>"
                     "</p>"
-                    
+
                     "<button name='save' type='submit' class='button greenbg'>Speichern</button>"
                     "</form>"
                     "</fieldset>"
@@ -273,7 +281,7 @@ void HttpSetup(void)
                     "</legend>"
                     "<form method='get' action='/config'>"
 
-                                        "<p>"
+                    "<p>"
                     "<b>Server Name or IP Address</b>"
                     "<br>"
                     "<input name='mqtt_server' type='text' placeholder='MQTT server' value='" + String(_config.mqtt.server) + "'>"
@@ -284,31 +292,31 @@ void HttpSetup(void)
                     "<br>"
                     "<input name='mqtt_port' type='text' placeholder='MQTT port' value='" + String(_config.mqtt.port) + "'>"
                     "</p>"
-                    
+
                     "<p>"
                     "<b>User (optional)</b>"
                     "<br>"
                     "<input name='mqtt_user' type='text' placeholder='MQTT user' value='" + String(_config.mqtt.user) + "'>"
                     "</p>"
 
-                                        "<p>"
+                    "<p>"
                     "<b>Password (optional)</b>"
                     "<br>"
                     "<input name='mqtt_password' type='text' placeholder='MQTT password' value='" + String(_config.mqtt.password) + "'>"
                     "</p>"
 
-                                        "<p>"
+                    "<p>"
                     "<b>Client ID</b>"
                     "<br>"
                     "<input name='mqtt_clientID' type='text' placeholder='MQTT ClientID' value='" + String(_config.mqtt.clientID) + "'>"
                     "</p>"
-                    
+
                     "<p>"
                     "<b>Topic Prefix</b>"
                     "<br>"
                     "<input name='mqtt_topicPrefix' type='text' placeholder='MQTT Topic Prefix' value='" + String(_config.mqtt.topicPrefix) + "'>"
                     "</p>"
-                    
+
                     "<button name='save' type='submit' class='button greenbg'>Speichern</button>"
                     "</form>"
                     "</fieldset>"
@@ -345,6 +353,14 @@ void HttpSetup(void)
                     "</p>"
 
                     "<p>"
+                    "<b>Active Scan Timeout (" + BLUETOOTH_ACTIVESCAN_TIMEOUT_MIN + "s - " + BLUETOOTH_ACTIVESCAN_TIMEOUT_MAX + "s)</b>"
+                    "<br>"
+                    "<input name='bluetooth_activescan_timeout' type='text' placeholder='Active Scan Timeout' value='" + String(_config.bluetooth.activescan_timeout) + "'>"
+                    "<br>"
+                    "<b>Note:</b> If this timeout is reached, the next scan will be an active scan. Otherwise only passive scans will be performed."
+                    "</p>"
+
+                    "<p>"
                     "<b>Absence Timeout Cycles (" + BLUETOOTH_ABSENCE_CYCLES_MIN + " - " + BLUETOOTH_ABSENCE_CYCLES_MAX + ")</b>"
                     "<br>"
                     "<input name='bluetooth_absence_cycles' type='text' placeholder='Bluetooth absence timeout cycles' value='" + String(_config.bluetooth.absence_cycles) + "'>"
@@ -360,6 +376,14 @@ void HttpSetup(void)
                     "<input name='bluetooth_publish_absence' type='radio' value='1'" + (_config.bluetooth.publish_absence ? " checked" : "") + "> Publish presence &amp; absence" +
                     "<br>"
                     "<b>Note:</b> Selecting <i>Publish only presence</i> might help if multiple scanners are publishing to the same object."
+                    "</p>"
+
+                    "<p>"
+                    "<b>MQTT Publishing Timeout (" + BLUETOOTH_PUBLISH_TIMEOUT_MIN + "s - " + BLUETOOTH_PUBLISH_TIMEOUT_MAX + "s)</b>"
+                    "<br>"
+                    "<input name='bluetooth_publish_timeout' type='text' placeholder='MQTT Publishing Timeout' value='" + String(_config.bluetooth.publish_timeout) + "'>"
+                    "<br>"
+                    "<b>Note:</b> This timeout is for device updates on a regular base. If a device presence changes, it will be reported instantly."
                     "</p>"
 
                     "<button name='save' type='submit' class='button greenbg'>Speichern</button>"
@@ -378,7 +402,7 @@ void HttpSetup(void)
        reset the config
     */
     memset(&_config, 0, sizeof(_config));
-    ConfigSet(0, sizeof(CONFIG), &_config);
+    ConfigSet(0, sizeof(CONFIG_T), &_config);
 
     _WebServer.send(200, "text/html",
                     _html_header +
@@ -528,7 +552,7 @@ void HttpSetup(void)
     _last_request = millis();
     _WebServer.send(200, "text/html",
                     _html_header +
-                    BluetoothScanListHTML() +
+                    ScanDevListHTML() +
                     "<p><form action='/btlist' method='get'><button class='button greenbg'>Reload</button></form><p>"
                     "<p><form action='/' method='get'><button>Main Menu</button></form><p>"
                     + _html_footer);

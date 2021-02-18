@@ -61,9 +61,11 @@ void MqttSetup(void)
   _topic_control = String(_config.mqtt.topicPrefix) + MQTT_TOPIC_CONTROL;
   _topic_device = String(_config.mqtt.topicPrefix) + MQTT_TOPIC_DEVICE;
 
+#if DBG_MQTT
   DbgMsg("MQTT: _topic_announce: %s", _topic_announce.c_str());
   DbgMsg("MQTT: _topic_control: %s", _topic_control.c_str());
   DbgMsg("MQTT: _topic_device: %s", _topic_device.c_str());
+#endif
 
   LogMsg("MQTT: context ready");
 }
@@ -91,14 +93,20 @@ void MqttUpdate(void)
                               true,  // willRetain
                               "{ \"state\":\"disconnected\" }");
 
+#if DBG_MQTT
       DbgMsg("MQTT: connect_status=%d", connect_status);
+#endif
 
       if (connect_status) {
+#if DBG_MQTT
         DbgMsg("MQTT: connected");
+#endif
         /*
            publish our connection state
         */
+#if DBG_MQTT
         DbgMsg("MQTT: publishing connection state");
+#endif
         _mqtt->publish((_topic_announce + "/state").c_str(), "connected", true);
         _mqtt->publish((_topic_announce + "/ssid").c_str(), WifiGetSSID().c_str(), true);
         _mqtt->publish((_topic_announce + "/ipaddr").c_str(), WifiGetIpAddr().c_str(), true);
@@ -126,7 +134,9 @@ void MqttPublish(String suffix, String msg)
 {
   String topic = _topic_device + String("/") + suffix;
 
+#if DBG_MQTT
   DbgMsg("MQTT: publishing: %s=%s", topic.c_str(), msg.c_str());
+#endif
 
   _mqtt->publish(topic.c_str(), msg.c_str(), msg.length());
 }/**/

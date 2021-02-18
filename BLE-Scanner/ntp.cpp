@@ -30,7 +30,7 @@
 /*
    NTP configuration
 */
-static CONFIG_NTP _config_ntp;
+static CONFIG_NTP_T _config_ntp;
 
 /*
 **  local port to listen for UDP packets
@@ -168,12 +168,10 @@ void NtpSetup(void)
     return;
   }
 
-  LogMsg("NTP: setting up NTP client");
-
   /*
      get the NTP from the configuration
   */
-  LogMsg("NTP: server=%s", _config_ntp.server);
+  LogMsg("NTP: setting up NTP, server=%s", _config_ntp.server);
 
   /*
      look up the ntpservers ip
@@ -182,14 +180,20 @@ void NtpSetup(void)
     /*
        we could resolve the ntp name, so store it in the flash
     */
-    LogMsg("NTP: lookup of %s successful: %s", _config_ntp.server, IPAddressToString(_ntp_ip).c_str());
+#if DBG_NTP
+    DbgMsg("NTP: lookup of %s successful: %s", _config_ntp.server, IPAddressToString(_ntp_ip).c_str());
+#endif
   }
   else {
-    LogMsg("NTP: lookup of %s failed", _config_ntp.server);
+#if DBG_NTP
+    DbgMsg("NTP: lookup of %s failed", _config_ntp.server);
+#endif
     return;
   }
 
+#if DBG_NTP
   DbgMsg("NTP: ip=%s", IPAddressToString(_ntp_ip).c_str());
+#endif
 
   NtpInit();
 }

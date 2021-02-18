@@ -38,8 +38,17 @@
 /*
    control the debugging messages
 */
-#define DBG         1
-#define DBG_DUMP    (DBG && 0)
+#define DBG           1
+#define DBG_BT        (DBG && 1)
+#define DBG_BT_DETAIL (DBG_BT && 0)
+#define DBG_CFG       (DBG && 0)
+#define DBG_HTTP      (DBG && 0)
+#define DBG_LED       (DBG && 0)
+#define DBG_MAC       (DBG && 0)
+#define DBG_NTP       (DBG && 0)
+#define DBG_MQTT      (DBG && 1)
+#define DBG_SCANDEV   (DBG && 0)
+#define DBG_STATE     (DBG && 0)
 
 /*
   tags to mark the configuration in the EEPROM
@@ -54,16 +63,16 @@ typedef struct _config_device {
   char name[64];
   char password[64];
   char reserved[256];
-} CONFIG_DEVICE;
+} CONFIG_DEVICE_T;
 
 typedef struct _config_wifi {
   char ssid[64];
   char psk[64];
-} CONFIG_WIFI;
+} CONFIG_WIFI_T;
 
 typedef struct _config_ntp {
   char server[64];
-} CONFIG_NTP;
+} CONFIG_NTP_T;
 
 typedef struct _config_mqtt {
   char server[64];
@@ -73,16 +82,18 @@ typedef struct _config_mqtt {
   char clientID[64];
   char topicPrefix[64];
   char reserved[192];
-} CONFIG_MQTT;
+} CONFIG_MQTT_T;
 
 typedef struct _config_bluetooth {
-  int btc_scan_time;
-  int ble_scan_time;
-  int pause_time;
-  int absence_cycles;
-  bool publish_absence;
-  char reserverd[252];
-} CONFIG_BT;
+  unsigned long btc_scan_time;      // duration of the BTC scan in seconds
+  unsigned long ble_scan_time;      // duration of the BLE scan in seconds
+  unsigned long pause_time;         // pause time after scans before restarting the scans
+  unsigned long activescan_timeout; // don't report a device too often
+  int absence_cycles;               // number of complete cycles before a device is set absent
+  bool publish_absence;             // only report presence, or also the absence
+  unsigned long publish_timeout;    // don't report a device too often
+  char reserved[238];
+} CONFIG_BT_T;
 
 /*
    the configuration layout
@@ -90,17 +101,17 @@ typedef struct _config_bluetooth {
 typedef struct _config {
   char magic[sizeof(CONFIG_MAGIC) + 1];
   int version;
-  CONFIG_DEVICE device;
-  CONFIG_WIFI wifi;
-  CONFIG_NTP ntp;
-  CONFIG_MQTT mqtt;
-  CONFIG_BT bluetooth;
-} CONFIG;
+  CONFIG_DEVICE_T device;
+  CONFIG_WIFI_T wifi;
+  CONFIG_NTP_T ntp;
+  CONFIG_MQTT_T mqtt;
+  CONFIG_BT_T bluetooth;
+} CONFIG_T;
 
 /*
    the config is global
 */
-extern CONFIG _config;
+extern CONFIG_T _config;
 
 /*
     setup the configuration
@@ -115,13 +126,13 @@ void ConfigUpdate(void);
 /*
    functions to get the configuration for a subsystem
 */
-#define CONFIG_GET(type,name,cfg)  ConfigGet(offsetof(CONFIG,name),sizeof(CONFIG_ ## type),(void *) (cfg))
+#define CONFIG_GET(type,name,cfg)  ConfigGet(offsetof(CONFIG_T,name),sizeof(CONFIG_ ## type ## _T),(void *) (cfg))
 void ConfigGet(int offset, int size, void *cfg);
 
 /*
    functions to set the configuration for a subsystem -- will be written to the EEPROM
 */
-#define CONFIG_SET(type,name,cfg)  ConfigSet(offsetof(CONFIG,name),sizeof(type),(void *) (cfg))
+#define CONFIG_SET(type,name,cfg)  ConfigSet(offsetof(CONFIG_T,name),sizeof(type),(void *) (cfg))
 void ConfigSet(int offset, int size, void *cfg);
 
 #endif

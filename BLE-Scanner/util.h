@@ -39,6 +39,19 @@
 #endif
 
 /*
+   compute the distance out of the RSSI value
+*/
+#define RSSI2METER(rssi)  (round(pow(10.0,((-69.0 - (rssi)) / (10.0 * 2.0))) * 100.0) / 100.0)
+
+/*
+ * check/fix the range of a value
+ */
+#define MIN(a,b)    (((a) < (b)) ? (a) : (b))
+#define MAX(a,b)    (((a) > (b)) ? (a) : (b))
+#define CHECK_RANGE(value,lower,upper)  MAX(MIN((value),(upper)),(lower))
+#define FIX_RANGE(value,lower,upper)  { value = CHECK_RANGE((value),(lower),(upper)); }
+ 
+/*
    convert an IP address to a C string
 */
 #define IPAddressToString(addr)   ((addr).toString())
@@ -70,8 +83,8 @@ const byte *StringToAddress(const char *str, int addrlen, bool dec);
 void dump(String title, const void *addr, const int len);
 
 /*
- * get a time in ascii
- */
+   get a time in ascii
+*/
 const char *TimeToString(time_t t);
 
 /*

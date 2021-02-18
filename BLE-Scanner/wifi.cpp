@@ -65,18 +65,23 @@ bool WifiSetup(void)
     /*
       connect to the configured Wifi network
     */
+#if DBG_WIFI
     DbgMsg("WIFI: SSID=%s  PSK=%s", _config.wifi.ssid, _config.wifi.psk);
+#endif
 
     WiFi.mode(WIFI_STA);
     WiFi.begin(_config.wifi.ssid, _config.wifi.psk);
 
     LogMsg("WIFI: waiting to connect to %s ...", _config.wifi.ssid);
   }
+  
   return WifiUpdate();
 }
 
 /*
    do Wifi updates
+
+   
 */
 bool WifiUpdate(void)
 {
@@ -99,7 +104,9 @@ bool WifiUpdate(void)
       */
       int retries = WIFI_CONNECT_RETRIES;
 
+#if DBG_WIFI
       DbgMsg("WIFI: status is not connected ... waiting for connection");
+#endif
       while (WiFi.status() != WL_CONNECTED) {
         delay(1000);
         if (--retries <= 0) {
@@ -113,6 +120,8 @@ bool WifiUpdate(void)
       */
       IPAddress ip = WiFi.localIP();
       LogMsg("WIFI: connected to %s with local IP address %s", _config.wifi.ssid, IPAddressToString(ip).c_str());
+
+      return true;
     }
   }
   return true;

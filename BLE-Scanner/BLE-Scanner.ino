@@ -29,10 +29,10 @@
 #include "ntp.h"
 #include "http.h"
 #include "mqtt.h"
-//#include "ble.h"
 #include "state.h"
 #include "util.h"
 #include "bluetooth.h"
+#include "scandev.h"
 #include <esp_task_wdt.h>
 
 void setup()
@@ -46,12 +46,12 @@ void setup()
 
 
   /*
-   * initialize the watchdog
-   * 
-   * the default timeout (5s) might be top short in debug mode
-   */
-  esp_task_wdt_init(30,true);
-  
+     initialize the watchdog
+
+     the default timeout (5s) might be top short in debug mode
+  */
+  esp_task_wdt_init(30, true);
+
   /*
      initialize the basic sub-systems
   */
@@ -74,12 +74,10 @@ void setup()
      setup the other sub-systems
   */
   MacAddrSetup();
+  ScanDevSetup();
   NtpSetup();
   HttpSetup();
   MqttSetup();
-#if 0
-  BleSetup();
-#endif
   BluetoothSetup();
 }
 
@@ -90,11 +88,33 @@ void loop()
   */
   ConfigUpdate();
   LedUpdate();
-  WifiUpdate();
-  NtpUpdate();
-  HttpUpdate();
-  MqttUpdate();
-  BluetoothUpdate();
+  if (StateCheck(STATE_CONFIGURING)) {
+    /*
+        in configuration mode, we will only server HTTP
+    */
+    HttpUpdate();
+
+    /*
+       if there is no activity via HTTP, we will reboot
+
+       this is in case where the device has switched by its own
+       into the configuration mode.
+    */
+    if (HttpLastRequest() > STATE_CONFIGURING_TIMEOUT) {
+      LogMsg(__TITLE__ ": restarting device");
+      StateChange(STATE_REBOOT);
+    }
+  }
+  if (StateCheck(STATE_SCANNING) || StateCheck(STATE_PAUSING)) {
+    /*
+       in normal operation we work on all sub systems
+    */
+    HttpUpdate();
+    NtpUpdate();
+    MqttUpdate();
+    BluetoothUpdate();
+    ScanDevUpdate();
+  }
 
   /*
      what to do?
@@ -104,6 +124,7 @@ void loop()
       /*
          start the scanner
       */
+      LogMsg(__TITLE__ ": start scanning");
       LedSetup(LED_MODE_BLINK_SLOW);
       BluetoothStartScan();
       break;
@@ -111,30 +132,21 @@ void loop()
       /*
          we are now pausing
       */
+      LogMsg(__TITLE__ ": start pausing");
       LedSetup(LED_MODE_BLINK_SLOW);
       break;
     case STATE_CONFIGURING:
       /*
          time to configure the device
       */
+      LogMsg(__TITLE__ ": entering configuration mode");
       LedSetup(LED_MODE_BLINK_FAST);
-
-      /*
-         if there is no activity via HTTP, we will reboot
-
-         this is in case where the device has switched by its own
-         into the configuration mode.
-      */
-      if (HttpLastRequest() > STATE_CONFIGURING_TIMEOUT) {
-        LogMsg("LOOP: restarting hte device");
-        StateChange(STATE_REBOOT);
-      }
       break;
     case STATE_REBOOT:
       /*
          time to boot
       */
-      LogMsg("LOOP: restarting the device");
+      LogMsg(__TITLE__ ": restarting the device");
       LedSetup(LED_MODE_OFF);
       ESP.restart();
       break;

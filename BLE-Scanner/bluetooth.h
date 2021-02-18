@@ -29,65 +29,30 @@
 #include "config.h"
 #include "macaddr.h"
 
-/*
-   how mandy device should be keep in our list
-*/
-#define BLUETOOTH_DEVICE_LIST_MAX_LENGTH    1000
-
-/*
-   how many chars should be store from the name of a device
-
-*/
-#define BLUETOOTH_DEVICE_NAME_LENGTH        20
-
-
 typedef enum {
   BLUETOOTH_MODE_IDLE = 0,
   BLUETOOTH_MODE_BTC_STARTED,
   BLUETOOTH_MODE_BTC_STOPPED,
   BLUETOOTH_MODE_BLE_STARTED,
   BLUETOOTH_MODE_BLE_STOPPED,
-} bluetooth_mode;
-
-typedef enum {
-  BLUETOOTH_DEVTYPE_BTC = 0,
-  BLUETOOTH_DEVTYPE_BLE,
-} bluetooth_devtype;
+} BLUETOOTH_MODE_T;
 
 /*
-    Bluetooth LE settings (in seconds)
+    Bluetooth settings
 */
-#define BLUETOOTH_BTC_SCAN_TIME_MIN     0
-#define BLUETOOTH_BTC_SCAN_TIME_MAX     (3 * 60)
-#define BLUETOOTH_BLE_SCAN_TIME_MIN     0
-#define BLUETOOTH_BLE_SCAN_TIME_MAX     (3 * 60)
-#define BLUETOOTH_PAUSE_TIME_MIN        0
-#define BLUETOOTH_PAUSE_TIME_MAX        (24 * 60 * 60)
-#define BLUETOOTH_ABSENCE_CYCLES_MIN    1
-#define BLUETOOTH_ABSENCE_CYCLES_MAX    10
+#define BLUETOOTH_BTC_SCAN_TIME_MIN           0             // seconds
+#define BLUETOOTH_BTC_SCAN_TIME_MAX           (3 * 60)
+#define BLUETOOTH_BLE_SCAN_TIME_MIN           0             // seconds
+#define BLUETOOTH_BLE_SCAN_TIME_MAX           (3 * 60)
+#define BLUETOOTH_PAUSE_TIME_MIN              0             // seconds
+#define BLUETOOTH_PAUSE_TIME_MAX              (24 * 60 * 60)
+#define BLUETOOTH_ACTIVESCAN_TIMEOUT_MIN      0             // seconds
+#define BLUETOOTH_ACTIVESCAN_TIMEOUT_MAX      (24 * 60 * 60)
+#define BLUETOOTH_ABSENCE_CYCLES_MIN          1             // cycles
+#define BLUETOOTH_ABSENCE_CYCLES_MAX          10
+#define BLUETOOTH_PUBLISH_TIMEOUT_MIN         10            // seconds
+#define BLUETOOTH_PUBLISH_TIMEOUT_MAX         (60 * 60)
 
-/*
-   struct to hold a found BLE device
-*/
-typedef struct _bluetooth_device {
-  bluetooth_devtype devtype;
-  byte mac[MAC_ADDR_LEN];
-  int rssi;
-  int cod;
-  char name[BLUETOOTH_DEVICE_NAME_LENGTH + 1];
-  const char *vendor;
-  time_t last_seen;
-  bool present;
-  bool publish;
-  struct _bluetooth_device *prev;
-  struct _bluetooth_device *next;
-} BLUETOOTH_DEVICE;
-
-
-/*
-   return the last BLE scan list as HTML
-*/
-String BluetoothScanListHTML(void);
 
 /*
  * setup the bluetooth stuff

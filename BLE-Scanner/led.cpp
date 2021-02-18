@@ -58,7 +58,9 @@ void LedUpdate(void)
       break;
   }
 
-  //DbgMsg("LED: _led_mode=%d  _led_last_blink=%lu  _led_state=%d  now=%lu  blink_rate=%lu", _led_mode, _led_last_blink, _led_state,now,blink_rate);
+#if DBG_LED
+  DbgMsg("LED: _led_mode=%d  _led_last_blink=%lu  _led_state=%d  now=%lu  blink_rate=%lu", _led_mode, _led_last_blink, _led_state, now, blink_rate);
+#endif
 
   if (blink_rate && now - _led_last_blink > blink_rate) {
     digitalWrite(LED_PIN, _led_state = !_led_state);
@@ -71,7 +73,9 @@ void LedUpdate(void)
 */
 void LedMode(int led_mode)
 {
+#if DBG_LED
   DbgMsg("LED: _led_mode=%d  _led_last_blink=%lu  _led_state=%d", _led_mode, _led_last_blink, _led_state);
+#endif
 
   switch (_led_mode = led_mode) {
     case LED_MODE_BLINK_SLOW:
@@ -81,7 +85,9 @@ void LedMode(int led_mode)
   }
   digitalWrite(LED_PIN, _led_state = (_led_mode == LED_MODE_ON) ? true : false);
 
+#if DBG_LED
   DbgMsg("LED: _led_mode=%d  _led_last_blink=%lu  _led_state=%d", _led_mode, _led_last_blink, _led_state);
+#endif
 
   LedUpdate();
 }/**/

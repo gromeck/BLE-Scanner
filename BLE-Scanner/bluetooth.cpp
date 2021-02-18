@@ -28,221 +28,18 @@
 #include "bluetooth.h"
 #include "mqtt.h"
 #include "macaddr.h"
+#include "scandev.h"
 #include "util.h"
 
+#include "BLEUUID.h"
 #include <esp_bt.h>
 #include <esp_bt_main.h>
 #include <esp_gap_bt_api.h>
 #include <esp_gap_ble_api.h>
 #include <esp_bt_device.h>
 
-static int _bluetooth_mode = BLUETOOTH_MODE_IDLE;
-
-static int _bluetooth_devices = 0;
-static BLUETOOTH_DEVICE *_bluetooth_device_list_first = NULL;
-static BLUETOOTH_DEVICE *_bluetooth_device_list_last = NULL;
-
-#if DBG
-static void dumpBluetoothDeviceList(const char *title)
-{
-  /*
-     dump the list
-  */
-  DbgMsg("BLE:%s: _bluetooth_devices=%d", title, _bluetooth_devices);
-  DbgMsg("BLE:%s: _bluetooth_device_list_first=%p", title, _bluetooth_device_list_first);
-  DbgMsg("BLE:%s: _bluetooth_device_list_last=%p", title, _bluetooth_device_list_last);
-  for (BLUETOOTH_DEVICE *device = _bluetooth_device_list_first; device; device = device->next) {
-    DbgMsg("BLE:%s: devtype=%d  mac=%s  device=%p  next=%p  prev=%p  rssi=%d  name=%s  vendor=%s  last_seen=%lu",
-           title,
-           device->devtype,
-           AddressToString(device->mac, MAC_ADDR_LEN, false, ':'),
-           device, device->next, device->prev,
-           device->rssi,
-           device->name,
-           (device->vendor) ? device->vendor : "-",
-           device->last_seen);
-
-  }
-}
-#endif
-
-/*
-   add a device to the device list
-*/
-bool BlootoothDeviceListAdd(bluetooth_devtype devtype, const byte * mac, const char *name, const int rssi, const int cod)
-{
-  BLUETOOTH_DEVICE *device;
-
-  /*
-     scan our list to check if this device is already known
-  */
-  //dumpBluetoothDeviceList("searching");
-  for (device = _bluetooth_device_list_first; device; device = device->next) {
-    if (!memcmp(device->mac, mac, MAC_ADDR_LEN)) {
-      /*
-         ok, this device was already seen
-      */
-      break;
-    }
-  }
-
-  if (!device && _bluetooth_devices >= BLUETOOTH_DEVICE_LIST_MAX_LENGTH) {
-    /*
-       no device found, and the maximum number of devices is reached
-
-       pick the last device from the list -- it will get overwritten
-    */
-    device = _bluetooth_device_list_last;
-  }
-
-  if (device) {
-    /*
-       de-list this device
-    */
-    //dumpBluetoothDeviceList("before de-listing");
-    if (device->prev)
-      device->prev->next = device->next;
-    if (device->next)
-      device->next->prev = device->prev;
-    if (_bluetooth_device_list_first == device)
-      _bluetooth_device_list_first = device->next;
-    if (_bluetooth_device_list_last == device)
-      _bluetooth_device_list_last = device->prev;
-    device->prev = NULL;
-    device->next = NULL;
-    _bluetooth_devices--;
-    //dumpBluetoothDeviceList("after de-listing");
-  }
-  else {
-    /*
-       create a new device
-    */
-    if ((device = (BLUETOOTH_DEVICE *) malloc(sizeof(BLUETOOTH_DEVICE)))) {
-      memset(device, 0, sizeof(BLUETOOTH_DEVICE));
-    }
-  }
-
-  if (device) {
-    /*
-       put this device at the begining of the list
-    */
-    //dumpBluetoothDeviceList("before insert");
-
-    if (_bluetooth_device_list_first)
-      _bluetooth_device_list_first->prev = device;
-    device->next = _bluetooth_device_list_first;
-    _bluetooth_device_list_first = device;
-    if (!_bluetooth_device_list_last)
-      _bluetooth_device_list_last = device;
-    _bluetooth_devices++;
-
-    /*
-       copy the data into the device
-    */
-    memcpy(device->mac, mac, MAC_ADDR_LEN);
-    if (name && name[0])
-      strncpy(device->name, name, BLUETOOTH_DEVICE_NAME_LENGTH);
-    device->devtype = devtype;
-    device->rssi = rssi;
-    device->cod = cod;
-    device->vendor = MacAddrLookup(mac);
-    device->last_seen = now();
-    device->present = true;
-
-    //dumpBluetoothDeviceList("after insert");
-  }
-
-  return (device) ? true : false;
-}
-
-/*
-   publish all devices which are not yet published
-*/
-static void blootoothPublishMQTT(void)
-{
-  BLUETOOTH_DEVICE *device;
-  int absence_timeout = _config.bluetooth.absence_cycles * (_config.bluetooth.btc_scan_time + _config.bluetooth.ble_scan_time + _config.bluetooth.pause_time);
-
-  /*
-     scan our list to check if this device is already known
-  */
-  for (device = _bluetooth_device_list_first; device; device = device->next) {
-    /*
-       set the device absent, if it was too long unseen
-    */
-    if (device->present && now() - device->last_seen > absence_timeout) {
-      /*
-         the device is absent
-      */
-      device->present = false;
-      device->publish = true;
-    }
-
-    if (device->publish) {
-      /*
-         publish the device state
-      */
-      String MAC = String(AddressToString(device->mac, MAC_ADDR_LEN, false, ':'));
-      MAC.toUpperCase();
-
-      MqttPublish(MAC + "/last_seen", String(device->last_seen));
-      if (device->present || _config.bluetooth.publish_absence)
-        MqttPublish(MAC + "/presence", (device->present) ? "present" : "absent");
-      MqttPublish(MAC + "/rssi", String(device->rssi));
-      MqttPublish(MAC + "/name", String(device->name));
-      MqttPublish(MAC + "/vendor", (device->vendor) ? String(device->vendor) : "");
-      device->publish = false;
-    }
-  }
-}
-
-/*
-   return the last BLE scan list as HTML
-*/
-String BluetoothScanListHTML(void)
-{
-  String html = "Bluetooth Scan List: " + String(TimeToString(now())) + "<p>";
-
-  html += "<table class='btscanlist'>"
-          "<tr>"
-          "<th>Type</th>"
-          "<th>MAC</th>"
-          "<th>RSSI</th>"
-          "<th>Name</th>"
-          "<th>Vendor</th>"
-          "<th>Last Seen</th>"
-          "<th>State</th>"
-          "</tr>";
-
-  if (_bluetooth_device_list_first) {
-    for (BLUETOOTH_DEVICE *device = _bluetooth_device_list_first; device; device = device->next) {
-      /*
-         setup the list as HTML
-      */
-      html += "<tr>"
-              "<td>" + String((device->devtype == BLUETOOTH_DEVTYPE_BLE) ? "BLE" : "BTC") + "</td>"
-              "<td>" + String(AddressToString(device->mac, MAC_ADDR_LEN, false, ':')) + "</td>"
-              "<td>" + String(device->rssi) + "</td>"
-              "<td>" + String((device->name[0]) ? device->name : "-") + "</td>"
-              "<td>" + String((device->vendor) ? device->vendor : "-") + "</td>"
-              "<td>" + String(TimeToString(device->last_seen)) + "</td>"
-              "<td>" + String(device->present ? "present" : "absent") + "</td>"
-              "</tr>";
-    }
-  }
-  else {
-    html += "<tr>"
-            "<td colspan=7>" + String("empty list") + "</td>"
-            "</tr>";
-  }
-  
-  html += "<tr>"
-          "<th colspan=7>Total of " + String(_bluetooth_devices) + " scanned bluetooth devices.</th>"
-          "</tr>"
-          "</table>";
-
-  return html;
-}
+static BLUETOOTH_MODE_T _bluetooth_mode = BLUETOOTH_MODE_IDLE;
+static time_t _last_activescan = 0;
 
 static void btc_scan_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param)
 {
@@ -250,11 +47,15 @@ static void btc_scan_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t
   byte *macaddr = NULL;
   int rssi = 0, cod = 0;
 
-  //DbgMsg("BLUETOOTH:BTC:bluetooth_scan_callback: event=%d", event);
+#if DBG_BT
+  DbgMsg("BT:BTC:bluetooth_scan_callback: event=%d", event);
+#endif
   switch (event) {
     case ESP_BT_GAP_DISC_RES_EVT:
-      LogMsg("BLUETOOTH:BTC:bluetooth_scan_callback:ESP_BT_GAP_DISC_RES_EVT: %s: properties: %d",
+#if DBG_BT
+      DbgMsg("BT:BTC:bluetooth_scan_callback:ESP_BT_GAP_DISC_RES_EVT: %s: properties: %d",
              AddressToString(param->disc_res.bda, 6, false, ':'), param->disc_res.num_prop);
+#endif
 
       /*
          init the information about the device
@@ -265,16 +66,20 @@ static void btc_scan_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t
          see what the properties contain
       */
       for (int n = 0; n < param->disc_res.num_prop; n++) {
-        LogMsg("BLUETOOTH:BTC:bluetooth_scan_callback:ESP_BT_GAP_DISC_RES_EVT: %s: prop[%d]: type=%d",
+#if DBG_BT
+        DbgMsg("BT:BTC:bluetooth_scan_callback:ESP_BT_GAP_DISC_RES_EVT: %s: prop[%d]: type=%d",
                AddressToString(macaddr, 6, false, ':'), n, param->disc_res.prop[n].type);
-        dump("BLUETOOTH:BTC:bluetooth_scan_callback:ESP_BT_GAP_DISC_RES_EVT: prop", param->disc_res.prop[n].val, param->disc_res.prop[n].len);
+        dump("BT:BTC:bluetooth_scan_callback:ESP_BT_GAP_DISC_RES_EVT: prop", param->disc_res.prop[n].val, param->disc_res.prop[n].len);
+#endif
         switch (param->disc_res.prop[n].type) {
           case ESP_BT_GAP_DEV_PROP_BDNAME:
             /*
                device name
             */
-            LogMsg("BLUETOOTH:BTC:bluetooth_scan_callback:ESP_BT_GAP_DISC_RES_EVT: %s  device name: %s",
+#if DBG_BT
+            DbgMsg("BT:BTC:bluetooth_scan_callback:ESP_BT_GAP_DISC_RES_EVT: %s  device name: %s",
                    AddressToString(macaddr, 6, false, ':'), (char *) param->disc_res.prop[n].val);
+#endif
             break;
           case ESP_BT_GAP_DEV_PROP_COD:
             /*
@@ -285,8 +90,10 @@ static void btc_scan_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t
               int minor = (*((uint32_t *) param->disc_res.prop[n].val) & ESP_BT_COD_MINOR_DEV_BIT_MASK) >> ESP_BT_COD_MINOR_DEV_BIT_OFFSET;
               int ftype = (*((uint32_t *) param->disc_res.prop[n].val) & ESP_BT_COD_FORMAT_TYPE_BIT_MASK) >> ESP_BT_COD_FORMAT_TYPE_BIT_OFFSET;
               cod = major;
-              LogMsg("BLUETOOTH:BTC:bluetooth_scan_callback:ESP_BT_GAP_DISC_RES_EVT: %s  device class: %d.%d  ftype: %d",
+#if DBG_BT
+              DbgMsg("BT:BTC:bluetooth_scan_callback:ESP_BT_GAP_DISC_RES_EVT: %s  device class: %d.%d  ftype: %d",
                      AddressToString(macaddr, 6, false, ':'), major, minor, ftype);
+#endif
             }
             break;
           case ESP_BT_GAP_DEV_PROP_RSSI:
@@ -294,8 +101,10 @@ static void btc_scan_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t
                device rssi
             */
             rssi = *((int8_t *) param->disc_res.prop[n].val);
-            LogMsg("BLUETOOTH:BTC:bluetooth_scan_callback:ESP_BT_GAP_DISC_RES_EVT: %s  device rssi: %d",
+#if DBG_BT
+            DbgMsg("BT:BTC:bluetooth_scan_callback:ESP_BT_GAP_DISC_RES_EVT: %s  device rssi: %d",
                    AddressToString(macaddr, 6, false, ':'), rssi);
+#endif
             break;
           case ESP_BT_GAP_DEV_PROP_EIR:
             /*
@@ -319,13 +128,18 @@ static void btc_scan_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t
 
                       strncpy(name, (const char*) &data[2], namelen);
                       name[namelen] = '\0';
-                      LogMsg("BLUETOOTH:BTC:bluetooth_scan_callback:ESP_BT_GAP_DISC_RES_EVT: %s  extended inquiriy response: device name: %s",
+#if DBG_BT
+                      DbgMsg("BT:BTC:bluetooth_scan_callback:ESP_BT_GAP_DISC_RES_EVT: %s  extended inquiriy response: device name: %s",
                              AddressToString(macaddr, 6, false, ':'), name);
+#endif
                     }
                     break;
                   default:
-                    LogMsg("BLUETOOTH:BTC:bluetooth_scan_callback:ESP_BT_GAP_DISC_RES_EVT: %s  extended inquiriy response: 0x%x",
+#if DBG_BT
+                    DbgMsg("BT:BTC:bluetooth_scan_callback:ESP_BT_GAP_DISC_RES_EVT: %s  extended inquiriy response: 0x%x",
                            AddressToString(macaddr, 6, false, ':'), eir);
+#endif
+                    ;
                 }
                 offset += len + 1;
               } while (offset < param->disc_res.prop[n].len);
@@ -336,15 +150,17 @@ static void btc_scan_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t
         /*
            update the device list
         */
-        BlootoothDeviceListAdd(BLUETOOTH_DEVTYPE_BTC, macaddr, name, rssi, cod);
+        ScanDevAdd(SCANDEV_TYPE_BTC, macaddr, name, rssi, cod);
       }
       break;
     case ESP_BT_GAP_DISC_STATE_CHANGED_EVT:
       /*
          the state changed
       */
-      LogMsg("BLUETOOTH:BTC:bluetooth_scan_callback:ESP_BT_GAP_DISC_STATE_CHANGED_EVT: discovery %s",
+#if DBG_BT
+      DbgMsg("BT:BTC:bluetooth_scan_callback:ESP_BT_GAP_DISC_STATE_CHANGED_EVT: discovery %s",
              (param->disc_st_chg.state == ESP_BT_GAP_DISCOVERY_STARTED) ? "started" : "stopped");
+#endif
 
       if (param->disc_st_chg.state != ESP_BT_GAP_DISCOVERY_STARTED)
         _bluetooth_mode = BLUETOOTH_MODE_BTC_STOPPED;
@@ -359,7 +175,9 @@ static void btc_scan_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t
 */
 static bool btc_scan_init(void)
 {
-  LogMsg("BLUETOOTH: init ...");
+#if DBG_BT
+  DbgMsg("BT:BTC: init ...");
+#endif
 
   /*
      setup the config
@@ -370,11 +188,11 @@ static bool btc_scan_init(void)
      init the BT controller
   */
   if (esp_bt_controller_init(&_bt_cfg) != ESP_OK) {
-    LogMsg("BLUETOOTH:BTC: esp_bt_controller_init() failed");
+    LogMsg("BT:BTC: esp_bt_controller_init() failed");
     return false;
   }
   if (esp_bt_controller_enable(ESP_BT_MODE_BTDM) != ESP_OK) {
-    LogMsg("BLUETOOTH:BTC: esp_bt_controller_enable() failed");
+    LogMsg("BT:BTC: esp_bt_controller_enable() failed");
     return false;
   }
 
@@ -382,11 +200,11 @@ static bool btc_scan_init(void)
      init the bluedroid part of the controller
   */
   if (esp_bluedroid_init() != ESP_OK) {
-    LogMsg("BLUETOOTH:BTC: esp_bluedroid_init() failed");
+    LogMsg("BT:BTC: esp_bluedroid_init() failed");
     return false;
   }
   if (esp_bluedroid_enable() != ESP_OK) {
-    LogMsg("BLUETOOTH:BTC: esp_bluedroid_enable() failed");
+    LogMsg("BT:BTC: esp_bluedroid_enable() failed");
     return false;
   }
 
@@ -394,15 +212,15 @@ static bool btc_scan_init(void)
      setup the classic mode scan
   */
   if (esp_bt_gap_register_callback(btc_scan_callback) != ESP_OK) {
-    LogMsg("BLUETOOTH:BTC: esp_bt_gap_register_callback() failed");
+    LogMsg("BT:BTC: esp_bt_gap_register_callback() failed");
     return false;
   }
   if (esp_bt_gap_set_scan_mode(ESP_BT_SCAN_MODE_CONNECTABLE_DISCOVERABLE) != ESP_OK) {
-    LogMsg("BLUETOOTH:BTC: esp_bt_gap_set_scan_mode() failed");
+    LogMsg("BT:BTC: esp_bt_gap_set_scan_mode() failed");
     return false;
   }
   if (esp_bt_gap_start_discovery(ESP_BT_INQ_MODE_GENERAL_INQUIRY, ESP_BT_GAP_MAX_INQ_LEN, 0) != ESP_OK) {
-    LogMsg("BLUETOOTH: esp_bt_gap_start_discovery() failed");
+    LogMsg("BT: esp_bt_gap_start_discovery() failed");
     return false;
   }
   return true;
@@ -422,48 +240,83 @@ static void btc_scan_deinit(void)
 
 static void ble_scan_callback(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
 {
-  char name[20] = "";
+  char name[SCANDEV_NAME_LENGTH] = "";
   byte *macaddr = NULL;
   int rssi = 0, cod = 0;
 
-  DbgMsg("BLUETOOTH:BLE:bluetooth_blescan_callback: event=%d", event);
-
   switch (event) {
+    case ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT:
+      /*
+         parameters are complete
+      */
+#if DBG_BT
+      DbgMsg("BT:BLE:ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT: paramters complete");
+#endif
+      break;
+    case ESP_GAP_BLE_SCAN_START_COMPLETE_EVT:
+      /*
+         scan started
+      */
+#if DBG_BT
+      DbgMsg("BT:BLE:ESP_GAP_BLE_SCAN_START_COMPLETE_EVT: scan started");
+#endif
+      break;
+    case ESP_GAP_BLE_SCAN_STOP_COMPLETE_EVT:
+      /*
+         scan stopped
+      */
+#if DBG_BT
+      DbgMsg("BT:BLE:ESP_GAP_BLE_SCAN_STOP_COMPLETE_EVT: scan stopped");
+#endif
+      _bluetooth_mode = BLUETOOTH_MODE_BLE_STOPPED;
+      break;
     case ESP_GAP_BLE_SCAN_RESULT_EVT:
-      LogMsg("BLUETOOTH:BLE:bluetooth_blescan_callback:ESP_GAP_BLE_SCAN_RESULT_EVT: search_evt=%d", param->scan_rst.search_evt);
+      /*
+         received a scan event
+      */
       switch (param->scan_rst.search_evt) {
         case ESP_GAP_SEARCH_INQ_CMPL_EVT:
+#if DBG_BT
+          DbgMsg("BT:BLE:ESP_GAP_BLE_SCAN_RESULT_EVT:ESP_GAP_SEARCH_INQ_CMPL_EVT: stopping scanning");
+#endif
+          _bluetooth_mode = BLUETOOTH_MODE_BLE_STOPPED;
+          break;
         case ESP_GAP_SEARCH_SEARCH_CANCEL_CMPL_EVT:
           /*
              scan is finished
           */
+#if DBG_BT
+          DbgMsg("BT:BLE:ESP_GAP_BLE_SCAN_RESULT_EVT:ESP_GAP_SEARCH_SEARCH_CANCEL_CMPL_EVT: stopping scanning");
+#endif
           _bluetooth_mode = BLUETOOTH_MODE_BLE_STOPPED;
           break;
         case ESP_GAP_SEARCH_INQ_RES_EVT:
           /*
              we have a scan result
           */
+#if DBG_BT_DETAIL
+          DbgMsg("BT:BLE:ESP_GAP_BLE_SCAN_RESULT_EVT:ESP_GAP_SEARCH_INQ_RES_EVT: received a scan result");
+#endif
           /*
             init the information about the device
           */
           macaddr = (byte *) param->scan_rst.bda;
           rssi = param->scan_rst.rssi;
           cod = param->scan_rst.dev_type;
-
-          LogMsg("BLUETOOTH:BLE:bluetooth_blescan_callback:ESP_GAP_BLE_SCAN_RESULT_EVT: bda=%s", AddressToString(param->scan_rst.bda, 6, false, ':'));
-          LogMsg("BLUETOOTH:BLE:bluetooth_blescan_callback:ESP_GAP_BLE_SCAN_RESULT_EVT: dev_type=%d", param->scan_rst.dev_type);
-          LogMsg("BLUETOOTH:BLE:bluetooth_blescan_callback:ESP_GAP_BLE_SCAN_RESULT_EVT: ble_evt_type=%d", param->scan_rst.ble_evt_type);
-          LogMsg("BLUETOOTH:BLE:bluetooth_blescan_callback:ESP_GAP_BLE_SCAN_RESULT_EVT: rssi=%d", param->scan_rst.rssi);
-
-          //dump("BLUETOOTH:BLE:bluetooth_blescan_callback:ESP_GAP_BLE_SCAN_RESULT_EVT: ble_adv", param->scan_rst.ble_adv, ESP_BLE_ADV_DATA_LEN_MAX + ESP_BLE_SCAN_RSP_DATA_LEN_MAX);
-
-          LogMsg("BLUETOOTH:BLE:bluetooth_blescan_callback:ESP_GAP_BLE_SCAN_RESULT_EVT: adv_data_len=%d", param->scan_rst.adv_data_len);
-          dump("BLUETOOTH:BLE:bluetooth_blescan_callback:ESP_GAP_BLE_SCAN_RESULT_EVT: adv data", param->scan_rst.ble_adv, param->scan_rst.adv_data_len);
-
+#if DBG_BT_DETAIL
+          DbgMsg("BT:BLE:ESP_GAP_BLE_SCAN_RESULT_EVT:ESP_GAP_SEARCH_INQ_RES_EVT: bda=%s", AddressToString(param->scan_rst.bda, 6, false, ':'));
+          DbgMsg("BT:BLE:ESP_GAP_BLE_SCAN_RESULT_EVT:ESP_GAP_SEARCH_INQ_RES_EVT: dev_type=%d", param->scan_rst.dev_type);
+          DbgMsg("BT:BLE:ESP_GAP_BLE_SCAN_RESULT_EVT:ESP_GAP_SEARCH_INQ_RES_EVT: ble_evt_type=%d", param->scan_rst.ble_evt_type);
+          DbgMsg("BT:BLE:ESP_GAP_BLE_SCAN_RESULT_EVT:ESP_GAP_SEARCH_INQ_RES_EVT: rssi=%d", param->scan_rst.rssi);
+#endif
           {
             /*
                scan the advertised data
             */
+#if DBG_BT_DETAIL
+            DbgMsg("BT:BLE:ESP_GAP_BLE_SCAN_RESULT_EVT:ESP_GAP_SEARCH_INQ_RES_EVT: adv_data_len=%d", param->scan_rst.adv_data_len);
+            dump("BT:BLE:ESP_GAP_BLE_SCAN_RESULT_EVT:ESP_GAP_SEARCH_INQ_RES_EVT: ble_adv", param->scan_rst.ble_adv, param->scan_rst.adv_data_len);
+#endif
             int offset = 0;
 
             do {
@@ -471,33 +324,45 @@ static void ble_scan_callback(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
               int len = data[0];
               int rsp = data[1];
 
+#if DBG_BT_DETAIL
+              LogMsg("BT:BLE:ESP_GAP_BLE_SCAN_RESULT_EVT:ESP_GAP_SEARCH_INQ_RES_EVT: %s  len=%d  res=0x%x",
+                     AddressToString(macaddr, 6, false, ':'), len, rsp);
+#endif
               if (!len || !rsp)
                 break;
-              switch (rsp) {
-                default:
-                  LogMsg("BLUETOOTH:BLE:bluetooth_scan_callback:ESP_BT_GAP_DISC_RES_EVT: %s  response: 0x%x",
-                         AddressToString(macaddr, 6, false, ':'), rsp);
-              }
+
+              /*
+                 handle the resonses
+              */
+
               offset += len + 1;
-            } while (offset < param->scan_rst.scan_rsp_len);
+            } while (offset < param->scan_rst.adv_data_len);
           }
-
-          LogMsg("BLUETOOTH:BLE:bluetooth_blescan_callback:ESP_GAP_BLE_SCAN_RESULT_EVT: scan_rsp_len=%d", param->scan_rst.scan_rsp_len);
-          dump("BLUETOOTH:BLE:bluetooth_blescan_callback:ESP_GAP_BLE_SCAN_RESULT_EVT: scan response", &param->scan_rst.ble_adv[param->scan_rst.adv_data_len], param->scan_rst.scan_rsp_len);
-
           {
             /*
                scan the scan response data
             */
-            int offset = param->scan_rst.adv_data_len;
+#if DBG_BT_DETAIL
+            DbgMsg("BT:BLE:ESP_GAP_BLE_SCAN_RESULT_EVT:ESP_GAP_SEARCH_INQ_RES_EVT: scan_rsp_len=%d", param->scan_rst.scan_rsp_len);
+            dump("BT:BLE:ESP_GAP_BLE_SCAN_RESULT_EVT:ESP_GAP_SEARCH_INQ_RES_EVT: scan response", &param->scan_rst.ble_adv[param->scan_rst.adv_data_len], param->scan_rst.scan_rsp_len);
+#endif
+            int offset = 0;
 
             do {
-              uint8_t *data = (uint8_t *) &param->scan_rst.ble_adv[offset];
+              uint8_t *data = (uint8_t *) &param->scan_rst.ble_adv[param->scan_rst.adv_data_len + offset];
               int len = data[0];
               int rsp = data[1];
 
+#if DBG_BT_DETAIL
+              LogMsg("BT:BLE:ESP_GAP_BLE_SCAN_RESULT_EVT:ESP_GAP_SEARCH_INQ_RES_EVT: %s  len=%d  res=0x%x",
+                     AddressToString(macaddr, 6, false, ':'), len, rsp);
+#endif
               if (!len || !rsp)
                 break;
+
+              /*
+                 handle the responses
+              */
               switch (rsp) {
                 case ESP_BLE_AD_TYPE_NAME_SHORT:
                 case ESP_BLE_AD_TYPE_NAME_CMPL:
@@ -506,55 +371,44 @@ static void ble_scan_callback(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
 
                     strncpy(name, (const char*) &data[2], namelen);
                     name[namelen] = '\0';
-                    LogMsg("BLUETOOTH:BLE:bluetooth_scan_callback:ESP_GAP_BLE_SCAN_RESULT_EVT: %s  response: device name: %s",
+#if DBG_BT_DETAIL
+                    DbgMsg("BT:BLE:ESP_GAP_BLE_SCAN_RESULT_EVT:ESP_GAP_SEARCH_INQ_RES_EVT: %s  response: device name: %s",
                            AddressToString(macaddr, 6, false, ':'), name);
+#endif
                   }
                   break;
-                default:
-                  LogMsg("BLUETOOTH:BLE:bluetooth_scan_callback:ESP_BT_GAP_DISC_RES_EVT: %s  response: 0x%x",
-                         AddressToString(macaddr, 6, false, ':'), rsp);
               }
+
               offset += len + 1;
             } while (offset < param->scan_rst.scan_rsp_len);
           }
 
-          LogMsg("BLUETOOTH:BLE:bluetooth_blescan_callback:ESP_GAP_BLE_SCAN_RESULT_EVT: flag=0x%x", param->scan_rst.flag);
-          LogMsg("BLUETOOTH:BLE:bluetooth_blescan_callback:ESP_GAP_BLE_SCAN_RESULT_EVT: num_resps=%d", param->scan_rst.num_resps);
-
-
-          LogMsg("BLUETOOTH:BLE:bluetooth_blescan_callback:ESP_GAP_BLE_SCAN_RESULT_EVT: num_dis=%lu", param->scan_rst.num_dis);
-#if 0
-          esp_bd_addr_t bda;                          /*!< Bluetooth device address which has been searched */
-          esp_bt_dev_type_t dev_type;                 /*!< Device type */
-          esp_ble_addr_type_t ble_addr_type;          /*!< Ble device address type */
-          esp_ble_evt_type_t ble_evt_type;            /*!< Ble scan result event type */
-          int rssi;                                   /*!< Searched device's RSSI */
-          uint8_t  ble_adv[ESP_BLE_ADV_DATA_LEN_MAX + ESP_BLE_SCAN_RSP_DATA_LEN_MAX];     /*!< Received EIR */
-          int flag;                                   /*!< Advertising data flag bit */
-          int num_resps;                              /*!< Scan result number */
-          uint8_t adv_data_len;                       /*!< Adv data length */
-          uint8_t scan_rsp_len;                       /*!< Scan response length */
-          uint32_t num_dis;                          /*!< The number of discard packets */
+#if DBG_BT_DETAIL
+          LogMsg("BT:BLE:ESP_GAP_BLE_SCAN_RESULT_EVT:ESP_GAP_SEARCH_INQ_RES_EVT: flag=0x%x", param->scan_rst.flag);
+          LogMsg("BT:BLE:ESP_GAP_BLE_SCAN_RESULT_EVT:ESP_GAP_SEARCH_INQ_RES_EVT: num_resps=%d", param->scan_rst.num_resps);
+          LogMsg("BT:BLE:ESP_GAP_BLE_SCAN_RESULT_EVT:ESP_GAP_SEARCH_INQ_RES_EVT: num_dis=%lu", param->scan_rst.num_dis);
 #endif
+          /*
+             update the device list
+          */
+#if DBG_BT
+          LogMsg("BT:BLE:ESP_GAP_BLE_SCAN_RESULT_EVT:ESP_GAP_SEARCH_INQ_RES_EVT: macaddr=%s  name=%-20s  rssi=%3d  cod=%3d",
+                 AddressToString(param->scan_rst.bda, 6, false, ':'),
+                 name, rssi, cod);
+#endif
+          ScanDevAdd(SCANDEV_TYPE_BLE, macaddr, name, rssi, cod);
           break;
         default:
+#if DBG_BT
+          DbgMsg("BT:BLE:ESP_GAP_BLE_SCAN_RESULT_EVT: unhandled event=%d", param->scan_rst.search_evt);
+#endif
           ;
       }
-
-      /*
-         update the device list
-      */
-      BlootoothDeviceListAdd(BLUETOOTH_DEVTYPE_BLE, macaddr, name, rssi, cod);
-      break;
-    case ESP_GAP_BLE_SCAN_START_COMPLETE_EVT:
-      /*
-         the state changed
-      */
-      LogMsg("BLUETOOTH:BLE:bluetooth_blescan_callback:ESP_GAP_BLE_SCAN_START_COMPLETE_EVT: scan started");
-
-      _bluetooth_mode = BLUETOOTH_MODE_BLE_STOPPED;
       break;
     default:
+#if DBG_BT
+      DbgMsg("BT:BLE: unhandled event=%d", event);
+#endif
       ;
   }
 }
@@ -564,7 +418,8 @@ static void ble_scan_callback(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
 */
 static bool ble_scan_init(void)
 {
-  LogMsg("BLUETOOTH:BLE: init ...");
+  LogMsg("BT:BLE: init ...");
+  int rc;
 
   /*
      setup the config
@@ -574,48 +429,68 @@ static bool ble_scan_init(void)
   /*
      init the BT controller
   */
-  if (esp_bt_controller_init(&_bt_cfg) != ESP_OK) {
-    LogMsg("BLUETOOTH:BLE: esp_bt_controller_init() failed");
+  if ((rc = esp_bt_controller_init(&_bt_cfg)) != ESP_OK) {
+    LogMsg("BT:BLE: esp_bt_controller_init() failed: %d", rc);
     return false;
   }
-  if (esp_bt_controller_enable(ESP_BT_MODE_BTDM) != ESP_OK) {
-    LogMsg("BLUETOOTH:BLE: esp_bt_controller_enable() failed");
+  if ((rc = esp_bt_controller_enable(ESP_BT_MODE_BTDM /* ESP_BT_MODE_BLE */)) != ESP_OK) {
+    LogMsg("BT:BLE: esp_bt_controller_enable() failed: %d", rc);
     return false;
   }
 
   /*
      init the bluedroid part of the controller
   */
-  if (esp_bluedroid_init() != ESP_OK) {
-    LogMsg("BLUETOOTH:BLE: esp_bluedroid_init() failed");
+  if ((rc = esp_bluedroid_init()) != ESP_OK) {
+    LogMsg("BT:BLE: esp_bluedroid_init() failed: %d", rc);
     return false;
   }
-  if (esp_bluedroid_enable() != ESP_OK) {
-    LogMsg("BLUETOOTH:BLE: esp_bluedroid_enable() failed");
+  if ((rc = esp_bluedroid_enable()) != ESP_OK) {
+    LogMsg("BT:BLE: esp_bluedroid_enable() failed: %d", rc);
     return false;
   }
 
   /*
-     setup the classic mode scan
+     setup the LE scan
   */
-  if (esp_ble_gap_register_callback(ble_scan_callback) != ESP_OK) {
-    LogMsg("BLUETOOTH:BLE: esp_ble_gap_register_callback() failed");
+  if ((rc = esp_ble_gap_register_callback(ble_scan_callback)) != ESP_OK) {
+    LogMsg("BT:BLE: esp_ble_gap_register_callback() failed: %d", rc);
     return false;
   }
   esp_ble_scan_params_t params;
-  params.scan_type = BLE_SCAN_TYPE_ACTIVE;
   params.own_addr_type = BLE_ADDR_TYPE_PUBLIC;
   params.scan_filter_policy = BLE_SCAN_FILTER_ALLOW_ALL;
-  params.scan_interval = 5;
-  params.scan_window = 100;
-  params.scan_duplicate = BLE_SCAN_DUPLICATE_DISABLE;
 
-  if (esp_ble_gap_set_scan_params(&params) != ESP_OK) {
-    LogMsg("BLUETOOTH:BLE: esp_ble_gap_set_scan_params() failed");
+  /*
+     active/passive scan
+  */
+  if (now() - _last_activescan > _config.bluetooth.activescan_timeout) {
+    params.scan_type = BLE_SCAN_TYPE_ACTIVE;
+    _last_activescan = now();
+  }
+  else
+    params.scan_type = BLE_SCAN_TYPE_PASSIVE;
+
+  /*
+     timing of the scan
+  */
+  params.scan_interval = (int) (3.0 /*s*/ * 1000.0 /*ms*/ / 0.625 /*ms*/);
+  //params.scan_interval = 10000;
+  params.scan_window = params.scan_interval;
+
+  /*
+    BLE_SCAN_DUPLICATE_DISABLE => report each packet received
+    BLE_SCAN_DUPLICATE_ENABLE  => filter out duplicate reports
+  */
+  //params.scan_duplicate = BLE_SCAN_DUPLICATE_DISABLE;
+  params.scan_duplicate = BLE_SCAN_DUPLICATE_ENABLE;
+
+  if ((rc = esp_ble_gap_set_scan_params(&params)) != ESP_OK) {
+    LogMsg("BT:BLE: esp_ble_gap_set_scan_params() failed: %d", rc);
     return false;
   }
-  if (esp_ble_gap_start_scanning(60) != ESP_OK) {
-    LogMsg("BLUETOOTH:BLE: esp_ble_gap_start_scanning() failed");
+  if ((rc = esp_ble_gap_start_scanning(_config.bluetooth.ble_scan_time)) != ESP_OK) {
+    LogMsg("BT:BLE: esp_ble_gap_start_scanning() failed: %d", rc);
     return false;
   }
   return true;
@@ -641,11 +516,13 @@ void BluetoothSetup(void)
   /*
      check and correct the config
   */
-  _config.bluetooth.btc_scan_time = min(max(_config.bluetooth.btc_scan_time, BLUETOOTH_BTC_SCAN_TIME_MIN), BLUETOOTH_BTC_SCAN_TIME_MAX);
-  _config.bluetooth.ble_scan_time = min(max(_config.bluetooth.ble_scan_time, BLUETOOTH_BLE_SCAN_TIME_MIN), BLUETOOTH_BLE_SCAN_TIME_MAX);
-  _config.bluetooth.pause_time = min(max(_config.bluetooth.pause_time, BLUETOOTH_PAUSE_TIME_MIN), BLUETOOTH_PAUSE_TIME_MAX);
-  _config.bluetooth.absence_cycles = min(max(_config.bluetooth.absence_cycles, BLUETOOTH_ABSENCE_CYCLES_MIN), BLUETOOTH_ABSENCE_CYCLES_MAX);
+  FIX_RANGE(_config.bluetooth.btc_scan_time,BLUETOOTH_BTC_SCAN_TIME_MIN,BLUETOOTH_BTC_SCAN_TIME_MAX);
+  FIX_RANGE(_config.bluetooth.ble_scan_time,BLUETOOTH_BLE_SCAN_TIME_MIN,BLUETOOTH_BLE_SCAN_TIME_MAX);
+  FIX_RANGE(_config.bluetooth.pause_time,BLUETOOTH_PAUSE_TIME_MIN,BLUETOOTH_PAUSE_TIME_MAX);
+  FIX_RANGE(_config.bluetooth.activescan_timeout,BLUETOOTH_ACTIVESCAN_TIMEOUT_MIN,BLUETOOTH_ACTIVESCAN_TIMEOUT_MAX);
+  FIX_RANGE(_config.bluetooth.absence_cycles,BLUETOOTH_ABSENCE_CYCLES_MIN,BLUETOOTH_ABSENCE_CYCLES_MAX);
   _config.bluetooth.publish_absence = _config.bluetooth.publish_absence ? true : false;
+  FIX_RANGE(_config.bluetooth.publish_timeout,BLUETOOTH_PUBLISH_TIMEOUT_MIN,BLUETOOTH_PUBLISH_TIMEOUT_MAX);
 
   /*
      set the timeout values in the status table
@@ -685,17 +562,6 @@ void BluetoothUpdate(void)
       break;
     default:
       ;
-  }
-
-
-  /*
-     publish the state
-  */
-  static unsigned long _last_publish_mqtt = 0;
-
-  if (now() - _last_publish_mqtt > 3) {
-    blootoothPublishMQTT();
-    _last_publish_mqtt = now();
   }
 }
 

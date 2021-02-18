@@ -113,7 +113,9 @@ int StateUpdate(void)
           /*
              start the timer for this state change
           */
+#if DBG_STATE
           DbgMsg("STATE: starting timer to change from %d to %d in %lums", _state, _states[n].next, _states[n].timeout);
+#endif
           _state_timer = now + _states[n].timeout;
         }
         break;
@@ -128,7 +130,9 @@ int StateUpdate(void)
      the new (and old) state
   */
   if (new_state != STATE_NONE) {
+#if DBG_STATE
     DbgMsg("STATE: changing from %d to %d", _state, new_state);
+#endif
     _state_timer = 0;
     return _state = new_state;
   }
@@ -140,7 +144,9 @@ int StateUpdate(void)
 */
 void StateChange(int state)
 {
+#if DBG_STATE
   DbgMsg("STATE: state change requested from %d to %d", _state, state);
+#endif
   _state_new = (_state != state) ? state : STATE_NONE;
 }
 
@@ -149,11 +155,15 @@ void StateChange(int state)
 */
 void StateModifyTimeout(int state, unsigned int timeout)
 {
+#if DBG_STATE
   DbgMsg("STATE: modifing timeout for state %d: %lums", state, timeout);
+#endif
   
   for (int n = 0; n < sizeof(_states) / sizeof(_states[0]); n++) {
     if (_states[n].state == state) {
+#if DBG_STATE
       DbgMsg("STATE: modifing timeout for state %d from %lums to %lums", state, _states[n].timeout, timeout);
+#endif
       _states[n].timeout = timeout;
     }
   }

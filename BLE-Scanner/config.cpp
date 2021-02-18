@@ -28,7 +28,7 @@
 #include "config.h"
 #include "eeprom.h"
 
-CONFIG _config;
+CONFIG_T _config;
 
 /*
     setup the configuration
@@ -38,9 +38,9 @@ bool ConfigSetup(void)
   /*
      read the full config from the EEPROM
   */
-  memset(&_config, 0, sizeof(CONFIG));
-  EepromInit(sizeof(CONFIG));
-  EepromRead(0, sizeof(CONFIG), &_config);
+  memset(&_config, 0, sizeof(CONFIG_T));
+  EepromInit(sizeof(CONFIG_T));
+  EepromRead(0, sizeof(CONFIG_T), &_config);
 
   /*
      check if the config version is ok
@@ -50,15 +50,15 @@ bool ConfigSetup(void)
        set a new default configuration
     */
     LogMsg("CFG: unexpected magic and version found -- erasing config and entering config mode");
-    memset(&_config, 0, sizeof(CONFIG));
+    memset(&_config, 0, sizeof(CONFIG_T));
     
     strcpy(_config.magic, CONFIG_MAGIC);
     _config.version = CONFIG_VERSION;
     return false;
   }
 
-#if DBG_DUMP
-  dump("CFG:", &_config, sizeof(CONFIG));
+#if DBG_CFG
+  dump("CFG:", &_config, sizeof(CONFIG_T));
 #endif
   return true;
 }
@@ -77,11 +77,13 @@ void ConfigUpdate(void)
 */
 void ConfigGet(int offset, int size, void *cfg)
 {
+#if DBG_CFG
   DbgMsg("CFG: getting config: offset:%d  size:%d  cfg:%p", offset, size, cfg);
+#endif
 
   memcpy(cfg, (byte *) &_config + offset, size);
 
-#if DBG_DUMP
+#if DBG_CFG
   dump("CFG:", cfg, size);
 #endif
 }
@@ -91,11 +93,13 @@ void ConfigGet(int offset, int size, void *cfg)
 */
 void ConfigSet(int offset, int size, void *cfg)
 {
+#if DBG_CFG
   DbgMsg("CFG: setting config: offset:%d  size:%d  cfg:%p", offset, size, cfg);
+#endif
 
   memcpy((byte *) &_config + offset, cfg, size);
 
-#if DBG_DUMP
+#if DBG_CFG
   dump("CFG:", cfg, size);
 #endif
 
