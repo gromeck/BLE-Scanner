@@ -88,6 +88,7 @@ void loop()
   */
   ConfigUpdate();
   LedUpdate();
+  WifiUpdate();
   if (StateCheck(STATE_CONFIGURING)) {
     /*
         in configuration mode, we will only server HTTP
