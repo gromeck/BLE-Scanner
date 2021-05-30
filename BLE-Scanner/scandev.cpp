@@ -55,7 +55,7 @@ static void dumpScanDevList(const char *title)
            device, device->next, device->prev,
            device->rssi,
            device->name,
-           (device->vendor) ? device->vendor : "-",
+           device->vendor,
            device->last_seen);
 
   }
@@ -144,7 +144,7 @@ bool ScanDevAdd(SCANDEV_TYPE_T devtype, const byte * mac, const char *name, cons
     device->devtype = devtype;
     device->rssi = rssi;
     device->cod = cod;
-    device->vendor = MacAddrLookup(mac);
+    device->vendor = MacAddrLookup(mac,"");
     device->last_seen = now();
     if (!device->present) {
       /*
@@ -200,7 +200,7 @@ static void ScanDevPublishMQTT(void)
         MqttPublish(MAC + "/presence", (device->present) ? "present" : "absent");
       MqttPublish(MAC + "/rssi", String(device->rssi));
       MqttPublish(MAC + "/name", String(device->name));
-      MqttPublish(MAC + "/vendor", (device->vendor) ? String(device->vendor) : "");
+      MqttPublish(MAC + "/vendor", String(device->vendor));
       device->publish = false;
       device->last_published = now();
     }
@@ -237,7 +237,7 @@ String ScanDevListHTML(void)
               "<td>" + String(device->rssi) + "</td>"
               "<td>" + String(RSSI2METER(device->rssi)) + "</td>"
               "<td>" + String((device->name[0]) ? device->name : "-") + "</td>"
-              "<td>" + String((device->vendor) ? device->vendor : "-") + "</td>"
+              "<td>" + String(device->vendor) + "</td>"
               "<td>" + String(TimeToString(device->last_seen)) + "</td>"
               "<td>" + String(device->present ? "present" : "absent") + "</td>"
               "</tr>";
