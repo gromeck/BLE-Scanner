@@ -38,6 +38,6 @@ void MacAddrSetup(void);
 /*
    lookup the vendor by the mac address
 */
-const char *MacAddrLookup(const byte *mac);
+const char *MacAddrLookup(const byte *mac,const char *none);
 
 #endif
