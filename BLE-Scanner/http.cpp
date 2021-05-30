@@ -148,6 +148,7 @@ void HttpSetup(void)
 #define CHECK_AND_SET_BOOL(type,name) { if (_WebServer.hasArg(#type "_" #name)) _config.type.name = (atoi(_WebServer.arg(#type "_" #name).c_str())) ? true : false; }
       CHECK_AND_SET_STRING(device, name);
       CHECK_AND_SET_STRING(device, password);
+      CHECK_AND_SET_NUMBER(device, timezone, -12,+12);
       CHECK_AND_SET_STRING(wifi, ssid);
       CHECK_AND_SET_STRING(wifi, psk);
       CHECK_AND_SET_STRING(ntp, server);
@@ -210,6 +211,12 @@ void HttpSetup(void)
                     "<input name='device_password' type='password' placeholder='Device Password' value='" + String(_config.device.password) + "'>"
                     "<br>"
                     "<b>Note:</b> username for authentication is <b>" HTTP_WEB_USER "</b>"
+                    "</p>"
+
+                    "<p>"
+                    "<b>Timezone (+/- offset in hours)</b>"
+                    "<br>"
+                    "<input name='device_timezone' type='text' placeholder='Timezone' value='" + String(_config.device.timezone) + "'>"
                     "</p>"
 
                     "<button name='save' type='submit' class='button greenbg'>Speichern</button>"
@@ -462,14 +469,14 @@ void HttpSetup(void)
                     "</tr>"
                     "<tr>"
                     "<td>Vendor</td>"
-                    "<td>" + String(MacAddrLookup(StringToAddress((const char *) WifiGetMacAddr().c_str(), MAC_ADDR_LEN, false))) + "</td>"
+                    "<td>" + String(MacAddrLookup(StringToAddress((const char *) WifiGetMacAddr().c_str(), MAC_ADDR_LEN, false),"unknown")) + "</td>"
                     "</tr>"
                     "<tr>"
                     "<td>IP Address</td>"
                     "<td>" + WifiGetIpAddr() + "</td>"
                     "</tr>"
 
-                    "<tr><th colspan=2>WiFi</th></tr>"
+                    "<tr><th colspan=2>NTP</th></tr>"
                     "<tr>"
                     "<td>Server</td>"
                     "<td>" + _config.ntp.server + "</td>"
@@ -515,11 +522,15 @@ void HttpSetup(void)
                     "<td>" + _config.bluetooth.pause_time + "</td>"
                     "</tr>"
                     "<tr>"
+                    "<td>Active Scan Timeout</td>"
+                    "<td>" + _config.bluetooth.activescan_timeout + "</td>"
+                    "</tr>"
+                    "<tr>"
                     "<td>Absence Timeout Cycle</td>"
                     "<td>" + _config.bluetooth.absence_cycles + "</td>"
                     "</tr>"
                     "<tr>"
-                    "<td>MQTT Publishing of Presence & Absence</td>"
+                    "<td>MQTT Publishing of Presence &amp; Absence</td>"
                     "<td>" + (_config.bluetooth.publish_absence ? "presence &amp; absence" : "only presence") + "</td>"
                     "</tr>"
 

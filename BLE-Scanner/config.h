@@ -62,7 +62,8 @@
 typedef struct _config_device {
   char name[64];
   char password[64];
-  char reserved[256];
+  int timezone;
+  char reserved[252];
 } CONFIG_DEVICE_T;
 
 typedef struct _config_wifi {

@@ -131,6 +131,7 @@ const char *TimeToString(time_t t)
   static char rotate_buffer[ROTATE_BUFFER][BUFFER_SIZE];
   char *buffer = rotate_buffer[++rotate % ROTATE_BUFFER];
 
+  t += (long) _config.device.timezone * SECS_PER_HOUR;
   strftime(buffer, BUFFER_SIZE, "%H:%M:%S %d.%m.%Y", gmtime(&t));
   return buffer;
 #undef BUFFER_SIZE
