@@ -162,15 +162,14 @@ void NtpSetup(void)
   if (StateCheck(STATE_CONFIGURING))
     return;
 
+  /*
+     get the NTP from the configuration
+  */
   CONFIG_GET(NTP, ntp, &_config_ntp);
   if (!_config_ntp.server[0]) {
     LogMsg("NTP: no server configured");
     return;
   }
-
-  /*
-     get the NTP from the configuration
-  */
   LogMsg("NTP: setting up NTP, server=%s", _config_ntp.server);
 
   /*
