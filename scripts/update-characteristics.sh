@@ -24,7 +24,7 @@
 #
 #
 #
-#	script to download the MAC vendors database from macaddress.io
+#	script to update the manufacturer list from bluetooth.com
 #
 #	the input format from macaddress.io is:
 #	oui,isPrivate,companyName,companyAddress,countryCode,assignmentBlockSize,dateCreated,dateUpdated
@@ -36,13 +36,22 @@
 #	NOTE: the vendor name is limited to 32 characters in the output
 #
 
-URL="https://macaddress.io/database/macaddress.io-db.csv"
-TARGET="../BLE-Scanner/macaddr-list.h"
+CHARACTERISTICS="
+appearance,https://www.bluetooth.com/wp-content/uploads/Sitecore-Media-Library/Gatt/Xml/Characteristics/org.bluetooth.characteristic.gap.appearance.xml
+"
 
-#
-#	write a header to the file
-#
-cat >$TARGET <<EOM
+for CHARACTERISTIC in $CHARACTERISTICS; do
+	URL=$( echo $CHARACTERISTIC | cut -f2 -d, )
+	CHARACTERISTIC=$( echo $CHARACTERISTIC | cut -f1 -d, )
+	XSLT="${CHARACTERISTIC}2list.xslt"
+	LIST="../BLE-Scanner/characteristic-$CHARACTERISTIC.h"
+
+	echo "Transforming $URL to $LIST with $XSLT ..."
+
+	#
+	#	write a header to the file
+	#
+	cat >$LIST <<EOM
 /*
 	updated with $0
 	
@@ -50,19 +59,8 @@ cat >$TARGET <<EOM
 */
 EOM
 
-#
-#	get the mac db
-#
-wget -q -O- $URL | \
-	awk 'BEGIN {
-		  FS = ",";
-		}
-		/^..:..:..,/ {
-			# mac address ($1) and vendor ($3)
-			# print $1,$3;
-			split($1,mac,":"); 
-			vendor = substr($3,1,24);
-			gsub(/"/, "", vendor);
-			printf "\t{ { 0x%s, 0x%s, 0x%s }, \"%s\" },\n", mac[1], mac[2], mac[3], vendor;
-		}' | \
-	sort | tee --append $TARGET | wc
+	#
+	#	do the transformation
+	#
+	wget -q -O- $URL | xmlstarlet tr $XSLT >>$LIST
+done
