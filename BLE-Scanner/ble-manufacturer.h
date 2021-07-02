@@ -23,21 +23,26 @@
 
 */
 
-#ifndef __MACADDR_H__
-#define __MACADDR_H__ 1
+#ifndef __BLE_MANUFACTURER_H__
+#define __BLE_MANUFACTURER_H__ 1
 
 #include "util.h"
 
-#define MAC_ADDR_LEN    6
+#define BLE_MANUFACTURER_ID_UNKNOWN   0xffff
 
 /*
  * setup
  */
-void MacAddrSetup(void);
+void BLEManufacturerSetup(void);
 
 /*
    lookup the vendor by the mac address
 */
-const char *MacAddrLookup(const byte *mac,const char *none);
+const char *BLEManufacturerLookup(const uint16_t id,const char *none);
+
+/*
+ * return a static string with the manufacturer ID
+ */
+const char *BLEManufacturerIdHex(const uint16_t id);
 
 #endif

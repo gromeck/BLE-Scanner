@@ -24,80 +24,77 @@
 */
 
 #include "config.h"
-#include "macaddr.h"
+#include "ble-manufacturer.h"
 
 /*
    struct to keep one mac address and its vendor
 */
-typedef struct _macaddr {
-  const byte mac[3];
-  const char *vendor;
-} MACADDR;
+typedef struct _ble_manufacturer {
+  uint16_t id;
+  const char *name;
+} BLE_MANUFACTURER;
 
 /*
    array of known mac address with their vendors
 */
-static const MACADDR _macaddrs[] PROGMEM = {
-//#include "macaddr-list.h"
+static const BLE_MANUFACTURER _ble_manufacturers[] PROGMEM = {
+#include "ble-manufacturer-list.h"
   { 0, 0 }
 };
 
 /*
    define the list lenght
 */
-#define MACADDR_LIST_LENGTH   (sizeof(_macaddrs) / sizeof(_macaddrs[0]) - 1)
-
-/*
-   compare two mac addresses (first 3 digits
-*/
-static int maccmp(const byte *a, const byte *b)
-{
-  int cmp;
-
-  if ((cmp = (int) * a++ - (int) * b++))
-    return cmp;
-  if ((cmp = (int) * a++ - (int) * b++))
-    return cmp;
-  return (int) * a - (int) * b;
-}
+#define BLE_MANUFACTURER_LIST_LENGTH   (sizeof(_ble_manufacturers) / sizeof(_ble_manufacturers[0]) - 1)
 
 /*
    setup
 */
-void MacAddrSetup(void)
+void BLEManufacturerSetup(void)
 {
 #if DBG_MAC
-  DbgMsg("MAC: sizeof lookup table entry: %d", sizeof(MACADDR));
-  DbgMsg("MAC: sizeof lookup table: %d", sizeof(_macaddrs));
-  DbgMsg("MAC: length of lookup table: %d", MACADDR_LIST_LENGTH);
+  DbgMsg("BLEManufacturerSetup: sizeof lookup table entry: %d", sizeof(BLE_MANUFACTURER));
+  DbgMsg("BLEManufacturerSetup: sizeof lookup table: %d", sizeof(_ble_manufacturers));
+  DbgMsg("BLEManufacturerSetup: length of lookup table: %d", BLE_MANUFACTURER_LIST_LENGTH);
 #endif
 }
 
 /*
    lookup the vendor by the mac address
 */
-const char *MacAddrLookup(const byte *mac,const char *none)
+const char *BLEManufacturerLookup(const uint16_t id,const char *none)
 {
-#if DBG_MAC
-  DbgMsg("MAC: looking up %02x:%02x:%02x", mac[0], mac[1], mac[2]);
+#if DBG_MANUFACTURER
+  DbgMsg("BLEManufacturerLookup: looking up %04x", id);
 #endif
 
   int low = 0;
-  int high = MACADDR_LIST_LENGTH - 1;
+  int high = BLE_MANUFACTURER_LIST_LENGTH - 1;
   int mid, cmp;
 
   while (low <= high) {
     mid = low + (high - low) / 2;
-    if ((cmp = maccmp(mac, _macaddrs[mid].mac)))
+    if ((cmp = (long) id - (long) _ble_manufacturers[mid].id))
       if (cmp > 0)
         low = mid + 1;
       else
         high = mid - 1;
     else
-      return _macaddrs[mid].vendor;
+      return _ble_manufacturers[mid].name;
   }
-#if DBG_MAC
-  DbgMsg("MAC: nothing found");
+#if DBG_BLE_MANUFACTURER
+  DbgMsg("BLEManufacturerLookup: nothing found");
 #endif
   return none;
+}
+
+/*
+ * return a static string with the manufacturer ID
+ */
+const char *BLEManufacturerIdHex(const uint16_t id)
+{
+  static char _hexid[8];
+
+  sprintf(_hexid,"0x%04X",id);
+  return _hexid;
 }/**/
