@@ -26,7 +26,6 @@
 #include "config.h"
 #include "wifi.h"
 #include "state.h"
-#include "macaddr.h"
 #include "util.h"
 
 WiFiClient _wifiClient;
@@ -48,8 +47,12 @@ bool WifiSetup(void)
     strcpy(_AP_SSID, (String(WIFI_AP_SSID_PREFIX) + String(AddressToString((byte *) WiFi.macAddress(mac) + sizeof(mac) - WIFI_AP_SSID_USE_LAST_MAC_DIGITS, WIFI_AP_SSID_USE_LAST_MAC_DIGITS, false,':'))).c_str());
 
     LogMsg("WIFI: opening access point with SSID %s ...", _AP_SSID);
+    WiFi.mode(WIFI_AP);
     WiFi.softAP(_AP_SSID);
     delay(1000);
+    IPAddress Ip(192, 168, 1, 1);
+    IPAddress NMask(255, 255, 255, 0);
+    WiFi.softAPConfig(Ip, Ip, NMask);
 
     LogMsg("WIFI: local IP address %s", IPAddressToString(WiFi.softAPIP()).c_str());
 
@@ -74,14 +77,13 @@ bool WifiSetup(void)
 
     LogMsg("WIFI: waiting to connect to %s ...", _config.wifi.ssid);
   }
-  
   return WifiUpdate();
 }
 
 /*
    do Wifi updates
 
-   
+
 */
 bool WifiUpdate(void)
 {
