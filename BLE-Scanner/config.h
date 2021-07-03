@@ -53,25 +53,25 @@
   tags to mark the configuration in the EEPROM
 */
 #define CONFIG_MAGIC      __TITLE__ "-CONFIG"
-#define CONFIG_VERSION    4
+#define CONFIG_VERSION    5
 
 /*
    sub-systems config structs
 */
-typedef struct _config_device {
-  char name[64];
-  char password[64];
-  int timezone;
-  char reserved[64];
-} CONFIG_DEVICE_T;
-
 typedef struct _config_wifi {
   char ssid[64];
   char psk[64];
 } CONFIG_WIFI_T;
 
+typedef struct _config_device {
+  char name[64];
+  char password[64];
+  char reserved[64];
+} CONFIG_DEVICE_T;
+
 typedef struct _config_ntp {
   char server[64];
+  int timezone;
 } CONFIG_NTP_T;
 
 typedef struct _config_mqtt {
@@ -101,8 +101,8 @@ typedef struct _config_bluetooth {
 typedef struct _config {
   char magic[sizeof(CONFIG_MAGIC) + 1];
   int version;
-  CONFIG_DEVICE_T device;
   CONFIG_WIFI_T wifi;
+  CONFIG_DEVICE_T device;
   CONFIG_NTP_T ntp;
   CONFIG_MQTT_T mqtt;
   CONFIG_BT_T bluetooth;
