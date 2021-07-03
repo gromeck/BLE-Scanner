@@ -38,6 +38,14 @@
 static WebServer _WebServer(80);
 
 /*
+   this is a callback helper to push data to the web client in chunks
+*/
+static void HttpSendHelper(const String& content)
+{
+  _WebServer.sendContent(content);
+}
+
+/*
   time of the last HTTP request
 */
 static unsigned long _last_request = 0;
@@ -90,9 +98,10 @@ void HttpSetup(void)
                     "<form action='/config' method='get'><button>Configuration</button></form><p>"
                     "<form action='/info' method='get'><button>Information</button></form><p>"
                     "<form action='/restart' method='get' onsubmit=\"return confirm('Are you sure to restart the device?');\"><button class='button redbg'>Restart</button></form><p>"
-                    "<p>"
-                    "<form action='/btlist' method='get'><button>Bluetooth Scan List</button></form><p>"
-                    + _html_footer);
+                    + (StateCheck(STATE_CONFIGURING)
+                       ? ""
+                       : "<p><form action='/btlist' method='get'><button>Bluetooth Scan List</button></form>")
+                    + "<p>" + _html_footer);
   });
 
   _WebServer.on("/styles.css", []() {
@@ -148,23 +157,23 @@ void HttpSetup(void)
 #define CHECK_AND_SET_BOOL(type,name) { if (_WebServer.hasArg(#type "_" #name)) _config.type.name = (atoi(_WebServer.arg(#type "_" #name).c_str())) ? true : false; }
       CHECK_AND_SET_STRING(device, name);
       CHECK_AND_SET_STRING(device, password);
-      CHECK_AND_SET_NUMBER(device, timezone, -12,+12);
       CHECK_AND_SET_STRING(wifi, ssid);
       CHECK_AND_SET_STRING(wifi, psk);
       CHECK_AND_SET_STRING(ntp, server);
+      CHECK_AND_SET_NUMBER(ntp, timezone, -12, +12);
       CHECK_AND_SET_STRING(mqtt, server);
       CHECK_AND_SET_NUMBER(mqtt, port, MQTT_PORT_MIN, MQTT_PORT_MAX);
       CHECK_AND_SET_STRING(mqtt, user);
       CHECK_AND_SET_STRING(mqtt, password);
       CHECK_AND_SET_STRING(mqtt, clientID);
       CHECK_AND_SET_STRING(mqtt, topicPrefix);
-      CHECK_AND_SET_NUMBER(bluetooth, btc_scan_time, BLUETOOTH_BTC_SCAN_TIME_MIN, BLUETOOTH_BTC_SCAN_TIME_MAX);
-      CHECK_AND_SET_NUMBER(bluetooth, ble_scan_time, BLUETOOTH_BLE_SCAN_TIME_MIN, BLUETOOTH_BLE_SCAN_TIME_MAX);
+      CHECK_AND_SET_NUMBER(bluetooth, scan_time, BLUETOOTH_SCAN_TIME_MIN, BLUETOOTH_SCAN_TIME_MAX);
       CHECK_AND_SET_NUMBER(bluetooth, pause_time, BLUETOOTH_PAUSE_TIME_MIN, BLUETOOTH_PAUSE_TIME_MAX);
       CHECK_AND_SET_NUMBER(bluetooth, absence_cycles, BLUETOOTH_ABSENCE_CYCLES_MIN, BLUETOOTH_ABSENCE_CYCLES_MAX);
       CHECK_AND_SET_BOOL(bluetooth, publish_absence);
-      CHECK_AND_SET_NUMBER(bluetooth, publish_timeout, BLUETOOTH_PUBLISH_TIMEOUT_MIN, BLUETOOTH_PUBLISH_TIMEOUT_MAX);
       CHECK_AND_SET_NUMBER(bluetooth, activescan_timeout, BLUETOOTH_ACTIVESCAN_TIMEOUT_MIN, BLUETOOTH_ACTIVESCAN_TIMEOUT_MAX);
+      CHECK_AND_SET_NUMBER(bluetooth, publish_timeout, BLUETOOTH_PUBLISH_TIMEOUT_MIN, BLUETOOTH_PUBLISH_TIMEOUT_MAX);
+      CHECK_AND_SET_NUMBER(bluetooth, battcheck_timeout, BLUETOOTH_BATTCHECK_TIMEOUT_MIN, BLUETOOTH_BATTCHECK_TIMEOUT_MAX);
 
       /*
          write the config back
@@ -174,7 +183,11 @@ void HttpSetup(void)
       /*
          activate the new settings
       */
-      BluetoothSetup();
+      if (!StateCheck(STATE_CONFIGURING)) {
+        NtpSetup();
+        MqttSetup();
+        BluetoothSetup();
+      }
     }
 
     _WebServer.send(200, "text/html",
@@ -211,12 +224,6 @@ void HttpSetup(void)
                     "<input name='device_password' type='password' placeholder='Device Password' value='" + String(_config.device.password) + "'>"
                     "<br>"
                     "<b>Note:</b> username for authentication is <b>" HTTP_WEB_USER "</b>"
-                    "</p>"
-
-                    "<p>"
-                    "<b>Timezone (+/- offset in hours)</b>"
-                    "<br>"
-                    "<input name='device_timezone' type='text' placeholder='Timezone' value='" + String(_config.device.timezone) + "'>"
                     "</p>"
 
                     "<button name='save' type='submit' class='button greenbg'>Speichern</button>"
@@ -269,6 +276,12 @@ void HttpSetup(void)
                     "<b>Server Name or IP Address</b>"
                     "<br>"
                     "<input name='ntp_server' type='text' placeholder='NTP server' value='" + String(_config.ntp.server) + "'>"
+                    "</p>"
+
+                    "<p>"
+                    "<b>Timezone (+/- offset in hours)</b>"
+                    "<br>"
+                    "<input name='device_timezone' type='text' placeholder='Timezone' value='" + String(_config.ntp.timezone) + "'>"
                     "</p>"
 
                     "<button name='save' type='submit' class='button greenbg'>Speichern</button>"
@@ -342,15 +355,9 @@ void HttpSetup(void)
                     "<form method='get' action='/config'>"
 
                     "<p>"
-                    "<b>Classic Scan Time (" + BLUETOOTH_BTC_SCAN_TIME_MIN + "s - " + BLUETOOTH_BTC_SCAN_TIME_MAX + "s; 0=off)</b>"
+                    "<b>LE Scan Time (" + BLUETOOTH_SCAN_TIME_MIN + "s - " + BLUETOOTH_SCAN_TIME_MAX + "s; 0=off)</b>"
                     "<br>"
-                    "<input name='bluetooth_btc_scan_time' type='text' placeholder='Bluetooth Classic scan time' value='" + String(_config.bluetooth.btc_scan_time) + "'>"
-                    "</p>"
-
-                    "<p>"
-                    "<b>LE Scan Time (" + BLUETOOTH_BLE_SCAN_TIME_MIN + "s - " + BLUETOOTH_BLE_SCAN_TIME_MAX + "s; 0=off)</b>"
-                    "<br>"
-                    "<input name='bluetooth_ble_scan_time' type='text' placeholder='Bluetooth BLE scan time' value='" + String(_config.bluetooth.ble_scan_time) + "'>"
+                    "<input name='bluetooth_scan_time' type='text' placeholder='Bluetooth BLE scan time' value='" + String(_config.bluetooth.scan_time) + "'>"
                     "</p>"
 
                     "<p>"
@@ -360,19 +367,19 @@ void HttpSetup(void)
                     "</p>"
 
                     "<p>"
-                    "<b>Active Scan Timeout (" + BLUETOOTH_ACTIVESCAN_TIMEOUT_MIN + "s - " + BLUETOOTH_ACTIVESCAN_TIMEOUT_MAX + "s)</b>"
-                    "<br>"
-                    "<input name='bluetooth_activescan_timeout' type='text' placeholder='Active Scan Timeout' value='" + String(_config.bluetooth.activescan_timeout) + "'>"
-                    "<br>"
-                    "<b>Note:</b> If this timeout is reached, the next scan will be an active scan. Otherwise only passive scans will be performed."
-                    "</p>"
-
-                    "<p>"
                     "<b>Absence Timeout Cycles (" + BLUETOOTH_ABSENCE_CYCLES_MIN + " - " + BLUETOOTH_ABSENCE_CYCLES_MAX + ")</b>"
                     "<br>"
                     "<input name='bluetooth_absence_cycles' type='text' placeholder='Bluetooth absence timeout cycles' value='" + String(_config.bluetooth.absence_cycles) + "'>"
                     "<br>"
                     "<b>Note:</b> One cycle is the sum of the time values above."
+                    "</p>"
+
+                    "<p>"
+                    "<b>Active Scan Timeout (" + BLUETOOTH_ACTIVESCAN_TIMEOUT_MIN + "s - " + BLUETOOTH_ACTIVESCAN_TIMEOUT_MAX + "s)</b>"
+                    "<br>"
+                    "<input name='bluetooth_activescan_timeout' type='text' placeholder='Active Scan Timeout' value='" + String(_config.bluetooth.activescan_timeout) + "'>"
+                    "<br>"
+                    "<b>Note:</b> If this timeout is reached, the next scan will be an active scan. Otherwise only passive scans will be performed."
                     "</p>"
 
                     "<p>"
@@ -391,6 +398,12 @@ void HttpSetup(void)
                     "<input name='bluetooth_publish_timeout' type='text' placeholder='MQTT Publishing Timeout' value='" + String(_config.bluetooth.publish_timeout) + "'>"
                     "<br>"
                     "<b>Note:</b> This timeout is for device updates on a regular base. If a device presence changes, it will be reported instantly."
+                    "</p>"
+
+                    "<p>"
+                    "<b>Battery Check Timeout (" + BLUETOOTH_BATTCHECK_TIMEOUT_MIN + "s - " + BLUETOOTH_BATTCHECK_TIMEOUT_MAX + "s)</b>"
+                    "<br>"
+                    "<input name='bluetooth_battcheck_timeout' type='text' placeholder='Battery Check Timeout' value='" + String(_config.bluetooth.battcheck_timeout) + "'>"
                     "</p>"
 
                     "<button name='save' type='submit' class='button greenbg'>Speichern</button>"
@@ -468,10 +481,6 @@ void HttpSetup(void)
                     "<td>" + WifiGetMacAddr() + "</td>"
                     "</tr>"
                     "<tr>"
-                    "<td>Vendor</td>"
-                    "<td>" + String(MacAddrLookup(StringToAddress((const char *) WifiGetMacAddr().c_str(), MAC_ADDR_LEN, false),"unknown")) + "</td>"
-                    "</tr>"
-                    "<tr>"
                     "<td>IP Address</td>"
                     "<td>" + WifiGetIpAddr() + "</td>"
                     "</tr>"
@@ -510,12 +519,8 @@ void HttpSetup(void)
 
                     "<tr><th colspan=2>Bluetooth</th></tr>"
                     "<tr>"
-                    "<td>Classic Scan Time</td>"
-                    "<td>" + _config.bluetooth.btc_scan_time + "</td>"
-                    "</tr>"
-                    "<tr>"
                     "<td>LE Scan Time</td>"
-                    "<td>" + _config.bluetooth.ble_scan_time + "</td>"
+                    "<td>" + _config.bluetooth.scan_time + "</td>"
                     "</tr>"
                     "<tr>"
                     "<td>Scan Pause Time</td>"
@@ -526,12 +531,21 @@ void HttpSetup(void)
                     "<td>" + _config.bluetooth.activescan_timeout + "</td>"
                     "</tr>"
                     "<tr>"
+                    "<tr>"
                     "<td>Absence Timeout Cycle</td>"
                     "<td>" + _config.bluetooth.absence_cycles + "</td>"
                     "</tr>"
                     "<tr>"
                     "<td>MQTT Publishing of Presence &amp; Absence</td>"
                     "<td>" + (_config.bluetooth.publish_absence ? "presence &amp; absence" : "only presence") + "</td>"
+                    "</tr>"
+                    "<tr>"
+                    "<td>MQTT Publish Timeout</td>"
+                    "<td>" + _config.bluetooth.publish_timeout + "</td>"
+                    "</tr>"
+                    "<tr>"
+                    "<td>Battery Check Timeout</td>"
+                    "<td>" + _config.bluetooth.battcheck_timeout + "</td>"
                     "</tr>"
 
                     "</table>"
@@ -560,13 +574,26 @@ void HttpSetup(void)
   });
 
   _WebServer.on("/btlist", []() {
+    /*
+       send the bluetooth list
+
+       NOTE: this list might by long, so we habe to send it device by device in HTML
+       in HTML chunks
+    */
     _last_request = millis();
-    _WebServer.send(200, "text/html",
-                    _html_header +
-                    ScanDevListHTML() +
-                    "<p><form action='/btlist' method='get'><button class='button greenbg'>Reload</button></form><p>"
-                    "<p><form action='/' method='get'><button>Main Menu</button></form><p>"
-                    + _html_footer);
+
+    _WebServer.setContentLength(CONTENT_LENGTH_UNKNOWN);
+    _WebServer.send(200, "text/html");
+    _WebServer.sendContent(
+      _html_header +
+      "<p><form action='/btlist' method='get'><button class='button greenbg'>Reload</button></form><p>");
+
+    ScanDevListHTML(HttpSendHelper);
+
+    _WebServer.sendContent(
+      "<p><form action='/btlist' method='get'><button class='button greenbg'>Reload</button></form><p>"
+      "<p><form action='/' method='get'><button>Main Menu</button></form><p>"
+      + _html_footer);
   });
 
   _WebServer.begin();
