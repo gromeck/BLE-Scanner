@@ -26,7 +26,11 @@
 #ifndef __CONFIG_H__
 #define __CONFIG_H__ 1
 
+#if __has_include("git-version.h")
 #include "git-version.h"
+#else
+#define GIT_VERSION		"unknown"
+#endif
 
 /*
  * enable/disable features
