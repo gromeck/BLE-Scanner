@@ -281,7 +281,7 @@ void HttpSetup(void)
                     "<p>"
                     "<b>Timezone (+/- offset in hours)</b>"
                     "<br>"
-                    "<input name='device_timezone' type='text' placeholder='Timezone' value='" + String(_config.ntp.timezone) + "'>"
+                    "<input name='ntp_timezone' type='text' placeholder='Timezone' value='" + String(_config.ntp.timezone) + "'>"
                     "</p>"
 
                     "<button name='save' type='submit' class='button greenbg'>Speichern</button>"
