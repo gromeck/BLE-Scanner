@@ -3,7 +3,7 @@
 ESP32-based Bluetooth Low Energy (BLE) scanner to report presence of bluetooth devices into an MQTT service.
 
 <div style="float:left;">
-<img src="Ressources/Screenshots/BLE-Scanner-Screenshot-Scanlist.png" height="500px">
+<img src="Ressources/Screenshots/BLE-Scanner-Screenshot-Scanlist.png">
 </div>
 
 ## Challenge
@@ -21,9 +21,9 @@ I used an [Espressif ESP32](https://www.espressif.com/en/products/socs/esp32) de
 The BLE scanning device is configured via a Web Frontend which is inspired by [Tasmota](https://github.com/arendst/Tasmota).
 
 <div style="float:left;">
-<img src="Ressources/Screenshots/BLE-Scanner-Screenshot-Main.png" height="400px">
-<img src="Ressources/Screenshots/BLE-Scanner-Screenshot-Config.png" height="400px">
-<img src="Ressources/Screenshots/BLE-Scanner-Screenshot-Info.png" height="400px">
+<img src="Ressources/Screenshots/BLE-Scanner-Screenshot-Main.png" height="300px">
+<img src="Ressources/Screenshots/BLE-Scanner-Screenshot-Config.png" height="300px">
+<img src="Ressources/Screenshots/BLE-Scanner-Screenshot-Info.png" height="300px">
 </div>
 
 The BLE-Scanner doesn't need any external circuit -- just flash the software on it and configure the device.
