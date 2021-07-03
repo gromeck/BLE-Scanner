@@ -27,7 +27,8 @@
 #define __SCANDEV_H__ 1
 
 #include "config.h"
-#include "macaddr.h"
+#include "ble-manufacturer.h"
+#include "BLEAddress.h"
 
 /*
    how mandy device should be keep in our list
@@ -41,26 +42,45 @@
 #define SCANDEV_NAME_LENGTH        20
 
 
-typedef enum {
-  SCANDEV_TYPE_BTC = 0,
-  SCANDEV_TYPE_BLE,
-} SCANDEV_TYPE_T;
-
-
 /*
    struct to hold a found BLE device
 */
 typedef struct _scandev_device {
-  SCANDEV_TYPE_T devtype;
-  byte mac[MAC_ADDR_LEN];
-  int rssi;
-  int cod;
+  /*
+     identification of the device
+  */
+  BLEAddress addr;
   char name[SCANDEV_NAME_LENGTH + 1];
-  const char *vendor;
+
+  /*
+     manufacturer
+  */
+  uint16_t manufacturer_id;
+  const char *manufacturer;
+
+  /*
+     battery
+  */
+  bool has_battery;
+  uint8_t battery_level;
+  time_t last_battcheck;
+
+  /*
+     state
+  */
   time_t last_seen;
   bool present;
+  int rssi;
+
+  /*
+     MQTT publishing
+  */
   bool publish;
   time_t last_published;
+
+  /*
+     book-keeping
+  */
   struct _scandev_device *prev;
   struct _scandev_device *next;
 } SCANDEV_T;
@@ -68,12 +88,14 @@ typedef struct _scandev_device {
 /*
    add a scanned device to the list
 */
-bool ScanDevAdd(SCANDEV_TYPE_T devtype, const byte * mac, const char *name, const int rssi, const int cod);
+bool ScanDevAdd(const BLEAddress addr, const char *name, const uint16_t manufacturer_id, const int rssi, const bool has_battery);
 
 /*
-   return the last BLE scan list as HTML
+   return the BLE scan list as HTML
+
+   the callback expects each device as an HTML chunk
 */
-String ScanDevListHTML(void);
+void ScanDevListHTML(void (*callback)(const String& content));
 
 /*
    setup the bluetooth stuff

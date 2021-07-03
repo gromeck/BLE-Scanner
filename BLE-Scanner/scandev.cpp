@@ -27,7 +27,7 @@
 #include "state.h"
 #include "bluetooth.h"
 #include "mqtt.h"
-#include "macaddr.h"
+#include "ble-manufacturer.h"
 #include "util.h"
 #include "scandev.h"
 
@@ -68,19 +68,23 @@ static void dumpScanDevList(const char *title)
 /*
    add a device to the device list
 */
-bool ScanDevAdd(SCANDEV_TYPE_T devtype, const byte * mac, const char *name, const int rssi, const int cod)
+bool ScanDevAdd(BLEAddress addr, const char *name, const uint16_t manufacturer_id, const int rssi, const bool has_battery)
 {
   SCANDEV_T *device;
+  int battery_level = 0;
 
   /*
      scan our list to check if this device is already known
   */
   DBG_SCANDEVLIST("searching");
   for (device = _scandev_first; device; device = device->next) {
-    if (!memcmp(device->mac, mac, MAC_ADDR_LEN)) {
+    if (device->addr == addr) {
       /*
          ok, this device was already seen
+
+         keep the battery level in mind
       */
+      battery_level = device->battery_level;
       break;
     }
   }
@@ -138,18 +142,19 @@ bool ScanDevAdd(SCANDEV_TYPE_T devtype, const byte * mac, const char *name, cons
     /*
        copy the data into the device
     */
-    memcpy(device->mac, mac, MAC_ADDR_LEN);
+    device->addr = addr;
     if (name && name[0])
       strncpy(device->name, name, SCANDEV_NAME_LENGTH);
-    device->devtype = devtype;
+    device->manufacturer_id = manufacturer_id;
+    device->manufacturer = BLEManufacturerLookup(manufacturer_id, "");
+    device->has_battery = has_battery;
+    device->battery_level = battery_level;
     device->rssi = rssi;
-    device->cod = cod;
-    device->vendor = MacAddrLookup(mac,"");
     device->last_seen = now();
     if (!device->present) {
       /*
-       * the prensence changed from absent to present
-       */
+         the prensence changed from absent to present
+      */
       device->present = true;
       device->publish = true;
     }
@@ -162,101 +167,90 @@ bool ScanDevAdd(SCANDEV_TYPE_T devtype, const byte * mac, const char *name, cons
 /*
    publish all devices which are not yet published
 */
-static void ScanDevPublishMQTT(void)
+static void ScanDevPublishMQTT(SCANDEV_T *device)
 {
-  SCANDEV_T *device;
-  int absence_timeout = _config.bluetooth.absence_cycles * (_config.bluetooth.btc_scan_time + _config.bluetooth.ble_scan_time + _config.bluetooth.pause_time);
-
   /*
-     scan our list to check if this device is already known
+     publish the device state
   */
-  for (device = _scandev_first; device; device = device->next) {
-    /*
-       set the device absent, if it was too long unseen
-    */
-    if (device->present && now() - device->last_seen > absence_timeout) {
-      /*
-         the device is absent
-      */
-      device->present = false;
-      device->publish = true;
-    }
-    if (device->present && now() - device->last_published > _config.bluetooth.publish_timeout) {
-      /*
-         it's time to publish this device
-      */
-      device->publish = true;
-    }
+  String Addr = String(device->addr.toString().c_str());
+  Addr.toUpperCase();
 
-    if (device->publish) {
-      /*
-         publish the device state
-      */
-      String MAC = String(AddressToString(device->mac, MAC_ADDR_LEN, false, ':'));
-      MAC.toUpperCase();
+  MqttPublish(Addr + "/last_seen", String(device->last_seen));
+  if (device->present || _config.bluetooth.publish_absence)
+    MqttPublish(Addr + "/presence", (device->present) ? "present" : "absent");
+  MqttPublish(Addr + "/rssi", String(device->rssi));
+  MqttPublish(Addr + "/name", String(device->name));
+  MqttPublish(Addr + "/manufacturer_id", String(BLEManufacturerIdHex(device->manufacturer_id)));
+  MqttPublish(Addr + "/manufacturer", String(device->manufacturer));
+  MqttPublish(Addr + "/battery", String(device->has_battery ? 1 : 0));
+  MqttPublish(Addr + "/battery_level", String(device->battery_level));
+  device->publish = false;
+  device->last_published = now();
+}
 
-      MqttPublish(MAC + "/last_seen", String(device->last_seen));
-      if (device->present || _config.bluetooth.publish_absence)
-        MqttPublish(MAC + "/presence", (device->present) ? "present" : "absent");
-      MqttPublish(MAC + "/rssi", String(device->rssi));
-      MqttPublish(MAC + "/name", String(device->name));
-      MqttPublish(MAC + "/vendor", String(device->vendor));
-      device->publish = false;
-      device->last_published = now();
-    }
-  }
+/*
+   check the battery level
+*/
+void ScanDevCheckBattery(SCANDEV_T *device)
+{
+  BluetoothBatteryCheck(device->addr,&device->battery_level);
+  device->last_battcheck = now();
 }
 
 /*
    return the last BLE scan list as HTML
 */
-String ScanDevListHTML(void)
+void ScanDevListHTML(void (*callback)(const String& content))
 {
-  String html = "Bluetooth Scan List: " + String(TimeToString(now())) + "<p>";
-
-  html += "<table class='btscanlist'>"
-          "<tr>"
-          "<th>Type</th>"
-          "<th>MAC</th>"
-          "<th>RSSI [dbm]</th>"
-          "<th>Distance [m]</th>"
-          "<th>Name</th>"
-          "<th>Vendor</th>"
-          "<th>Last Seen</th>"
-          "<th>State</th>"
-          "</tr>";
+  /*
+     setup the list header
+  */
+  (*callback)("Bluetooth Scan List: " + String(TimeToString(now())) + "<p>" +
+              "<table class='btscanlist'>"
+              "<tr>"
+              "<th>State</th>"
+              "<th>Address</th>"
+              "<th>Name</th>"
+              "<th>ManufacturerID</th>"
+              "<th>Manufacturer</th>"
+              "<th>RSSI [dbm]</th>"
+              "<th>Distance [m]</th>"
+              "<th>Last Seen</th>"
+              "<th>Battery [%]</th>"
+              "</tr>");
 
   if (_scandev_first) {
     for (SCANDEV_T *device = _scandev_first; device; device = device->next) {
       /*
          setup the list as HTML
       */
-      html += "<tr>"
-              "<td>" + String((device->devtype == SCANDEV_TYPE_BLE) ? "BLE" : "BTC") + "</td>"
-              "<td>" + String(AddressToString(device->mac, MAC_ADDR_LEN, false, ':')) + "</td>"
-              "<td>" + String(device->rssi) + "</td>"
-              "<td>" + String(RSSI2METER(device->rssi)) + "</td>"
-              "<td>" + String((device->name[0]) ? device->name : "-") + "</td>"
-              "<td>" + String(device->vendor) + "</td>"
-              "<td>" + String(TimeToString(device->last_seen)) + "</td>"
-              "<td>" + String(device->present ? "present" : "absent") + "</td>"
-              "</tr>";
+      (*callback)("<tr>"
+                  "<td>" + String(device->present ? "✅" : "❌") + "</td>"
+                  "<td>" + String(device->addr.toString().c_str()) + "</td>"
+                  "<td>" + String((device->name[0]) ? device->name : "-") + "</td>"
+                  "<td>" + String((device->manufacturer_id != BLE_MANUFACTURER_ID_UNKNOWN) ? BLEManufacturerIdHex(device->manufacturer_id) : "-") + "</td>"
+                  "<td>" + String((device->manufacturer_id != BLE_MANUFACTURER_ID_UNKNOWN) ? device->manufacturer : "-") + "</td>"
+                  "<td>" + String(device->rssi) + "</td>"
+                  "<td>" + String(RSSI2METER(device->rssi)) + "</td>"
+                  "<td>" + String(TimeToString(device->last_seen)) + "</td>"
+                  "<td>" + ((device->has_battery) ? String(device->battery_level) : String("-")) + "</td>"
+                  "</tr>");
     }
   }
   else {
-    html += "<tr>"
-            "<td colspan=8>" + String("empty list") + "</td>"
-            "</tr>";
+    (*callback)("<tr>"
+                "<td colspan=9>" + String("empty list") + "</td>"
+                "</tr>");
   }
 
-  html += "<tr>"
-          "<th colspan=8>Total of " + String(_scandev_count) + " scanned bluetooth devices.</th>"
-          "</tr>"
-          "</table>";
-
-  return html;
+  /*
+       setup the list footer
+  */
+  (*callback)("<tr>"
+              "<th colspan=9>Total of " + String(_scandev_count) + " scanned bluetooth devices.</th>"
+              "</tr>"
+              "</table>");
 }
-
 
 /*
    setup
@@ -268,14 +262,42 @@ void ScanDevSetup(void)
 /*
   update the scan device list
 
-  publish all changed devices -- but only once a second
+  publish all changed devices
 */
 void ScanDevUpdate(void)
 {
-  static unsigned long _last_publish_mqtt = 0;
+  SCANDEV_T *device;
+  int absence_timeout = _config.bluetooth.absence_cycles * (_config.bluetooth.scan_time + _config.bluetooth.pause_time);
+  static time_t _last = 0;
 
-  if (now() - _last_publish_mqtt > 0) {
-    ScanDevPublishMQTT();
-    _last_publish_mqtt = now();
+  if (now() > _last) {
+    /*
+       scan our list to check if this device is already known
+    */
+    for (device = _scandev_first; device; device = device->next) {
+      /*
+         set the device absent, if it was too long unseen
+      */
+      if (device->present && now() - device->last_seen > absence_timeout) {
+        /*
+           the device is absent
+        */
+        device->present = false;
+        device->publish = true;
+      }
+      if (device->present && now() - device->last_published > _config.bluetooth.publish_timeout) {
+        /*
+           it's time to publish this device
+        */
+        device->publish = true;
+      }
+
+      if (device->publish)
+        ScanDevPublishMQTT(device);
+
+      if (device->has_battery && device->present && now() - device->last_battcheck > _config.bluetooth.battcheck_timeout)
+        ScanDevCheckBattery(device);
+    }
+    _last = now();
   }
 }/**/
