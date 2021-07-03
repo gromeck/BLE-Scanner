@@ -49,11 +49,12 @@ bool ConfigSetup(void)
     /*
        set a new default configuration
     */
-    LogMsg("CFG: unexpected magic and version found -- erasing config and entering config mode");
+    LogMsg("CFG: unexpected magic or version found -- erasing config and entering config mode");
     memset(&_config, 0, sizeof(CONFIG_T));
     
     strcpy(_config.magic, CONFIG_MAGIC);
     _config.version = CONFIG_VERSION;
+
     return false;
   }
 

@@ -39,22 +39,21 @@
    control the debugging messages
 */
 #define DBG           1
-#define DBG_BT        (DBG && 1)
-#define DBG_BT_DETAIL (DBG_BT && 0)
-#define DBG_CFG       (DBG && 0)
-#define DBG_HTTP      (DBG && 0)
-#define DBG_LED       (DBG && 0)
-#define DBG_MAC       (DBG && 0)
-#define DBG_NTP       (DBG && 0)
-#define DBG_MQTT      (DBG && 1)
-#define DBG_SCANDEV   (DBG && 0)
-#define DBG_STATE     (DBG && 0)
+#define DBG_BT            (DBG && 1)
+#define DBG_CFG           (DBG && 0)
+#define DBG_HTTP          (DBG && 0)
+#define DBG_LED           (DBG && 0)
+#define DBG_MANUFACTURER  (DBG && 0)
+#define DBG_NTP           (DBG && 0)
+#define DBG_MQTT          (DBG && 1)
+#define DBG_SCANDEV       (DBG && 0)
+#define DBG_STATE         (DBG && 0)
 
 /*
   tags to mark the configuration in the EEPROM
 */
 #define CONFIG_MAGIC      __TITLE__ "-CONFIG"
-#define CONFIG_VERSION    3
+#define CONFIG_VERSION    4
 
 /*
    sub-systems config structs
@@ -63,7 +62,7 @@ typedef struct _config_device {
   char name[64];
   char password[64];
   int timezone;
-  char reserved[252];
+  char reserved[64];
 } CONFIG_DEVICE_T;
 
 typedef struct _config_wifi {
@@ -82,18 +81,18 @@ typedef struct _config_mqtt {
   char password[64];
   char clientID[64];
   char topicPrefix[64];
-  char reserved[192];
+  char reserved[64];
 } CONFIG_MQTT_T;
 
 typedef struct _config_bluetooth {
-  unsigned long btc_scan_time;      // duration of the BTC scan in seconds
-  unsigned long ble_scan_time;      // duration of the BLE scan in seconds
+  unsigned long scan_time;          // duration of the BLE scan in seconds
   unsigned long pause_time;         // pause time after scans before restarting the scans
   unsigned long activescan_timeout; // don't report a device too often
   int absence_cycles;               // number of complete cycles before a device is set absent
   bool publish_absence;             // only report presence, or also the absence
   unsigned long publish_timeout;    // don't report a device too often
-  char reserved[238];
+  unsigned long battcheck_timeout;  // don't check the device battery too often
+  char reserved[64];
 } CONFIG_BT_T;
 
 /*
