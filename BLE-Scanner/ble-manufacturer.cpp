@@ -38,7 +38,10 @@ typedef struct _ble_manufacturer {
    array of known mac address with their vendors
 */
 static const BLE_MANUFACTURER _ble_manufacturers[] PROGMEM = {
+#if __has_include("ble-manufacturer-list.h")
 #include "ble-manufacturer-list.h"
+#endif
+
   { 0, 0 }
 };
 
