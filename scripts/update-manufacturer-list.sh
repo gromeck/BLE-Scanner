@@ -67,9 +67,9 @@ cat >$TARGET <<EOM
 EOM
 
 #
-#	get the mac db
+#	get the manufacturer db into the target file
 #
-cat "$FILE" | \
+ITEMS=$( cat "$FILE" | \
 	awk 'BEGIN {
 		  FS = ",";
 		}
@@ -82,4 +82,6 @@ cat "$FILE" | \
 			gsub(/"/, "", vendor);
 			printf "\t{ %s, \"%s\" },\n", hex, vendor;
 		}' | \
-	sort | tee --append $TARGET | wc -l
+	sort | tee --append $TARGET | wc -l )
+
+echo "Written $ITEMS entries to $TARGET -- recompile the scetch."
