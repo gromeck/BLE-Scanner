@@ -44,7 +44,6 @@ void setup()
   Serial.println();
   LogMsg("*** " __TITLE__ " - Version " GIT_VERSION " ***");
 
-
   /*
      initialize the watchdog
 
@@ -61,9 +60,9 @@ void setup()
   if (!ConfigSetup())
     StateChange(STATE_CONFIGURING);
 
-  if (!WifiSetup()) {
+  if (StateCheck(STATE_CONFIGURING) || !WifiSetup()) {
     /*
-       something wen't wrong -- enter configuration mode
+       something went wrong -- enter configuration mode
     */
     LogMsg("SETUP: no WIFI connection -- entering configuration mode");
     StateSetup(STATE_CONFIGURING);
@@ -73,12 +72,14 @@ void setup()
   /*
      setup the other sub-systems
   */
-  MacAddrSetup();
-  ScanDevSetup();
-  NtpSetup();
   HttpSetup();
-  MqttSetup();
-  BluetoothSetup();
+  if (!StateCheck(STATE_CONFIGURING)) {
+    ScanDevSetup();
+    NtpSetup();
+    BLEManufacturerSetup();
+    MqttSetup();
+    BluetoothSetup();
+  }
 }
 
 void loop()
@@ -91,7 +92,7 @@ void loop()
   WifiUpdate();
   if (StateCheck(STATE_CONFIGURING)) {
     /*
-        in configuration mode, we will only server HTTP
+        in configuration mode, we will only serve HTTP
     */
     HttpUpdate();
 
@@ -125,22 +126,24 @@ void loop()
       /*
          start the scanner
       */
-      LogMsg(__TITLE__ ": start scanning");
+      LogMsg(__TITLE__ ": scanning");
       LedSetup(LED_MODE_BLINK_SLOW);
-      BluetoothStartScan();
+      BluetoothScanStart();
       break;
     case STATE_PAUSING:
       /*
          we are now pausing
       */
-      LogMsg(__TITLE__ ": start pausing");
+      LogMsg(__TITLE__ ": pausing");
       LedSetup(LED_MODE_BLINK_SLOW);
+      BluetoothScanStop();
       break;
     case STATE_CONFIGURING:
       /*
          time to configure the device
       */
-      LogMsg(__TITLE__ ": entering configuration mode");
+      LogMsg(__TITLE__ ": entering configuration mode -- rebooting in %d seconds if no configuration activity is registered",
+             STATE_CONFIGURING_TIMEOUT - HttpLastRequest());
       LedSetup(LED_MODE_BLINK_FAST);
       break;
     case STATE_REBOOT:
