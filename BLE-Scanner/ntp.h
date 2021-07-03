@@ -26,7 +26,7 @@
 #ifndef __NTP_H__
 #define __NTP_H__ 1
 
-#include <Time.h>
+#include <TimeLib.h>
 #include "config.h"
 #include "util.h"
 
