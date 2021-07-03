@@ -2,21 +2,28 @@
 
 ESP32-based Bluetooth Low Energy (BLE) scanner to report presence of bluetooth devices into an MQTT service.
 
+<div style="float:left;">
+<img src="Ressources/Screenshots/BLE-Scanner-Scanlist.png" height="500px">
+</div>
 ## Challenge
 
 Nowadays more and more bluetooth devices are around for personal use, like smart phones or smart watches. Why not use these devices to check presence of tenants at home?
 
 There are [already some solutions around](https://github.com/search?q=ble+scan+esp32&type=Repositories). So why add another one?
 
-I was quite astonished how many devices are detected if you scan the air for bluetooth. Only a few of these report their name, so its hard to distinguish these. So I decided to use [macaddress.io](https://macaddres.io) to lookup the vendor by the devices MAC address. I had to realize that only very few vendors can be looked up this way (can't tell so far, if this MAC address register ist the official one).
+I was quite astonished how many devices are detected if you scan the air for bluetooth. Only a few of these report their name, so its hard to distinguish these. The [Bluetooth list of manufacturers](https://www.bluetooth.com/specifications/assigned-numbers/company-identifiers/) helps here.
 
 ## Solution
 
-I used an [Espressif ESP32](https://www.espressif.com/en/products/socs/esp32) device which has WiFi and Bluetooth on-board. The bluetooth scan results are published to an MQTT server via WiFi.
-
-The MAC adresses of the scanned devices are looked up via [macaddress.io](https://macaddress.io).
+I used an [Espressif ESP32](https://www.espressif.com/en/products/socs/esp32) device which has WiFi and Bluetooth on-board (e.g. the Mini D1). The bluetooth scan results are published to an MQTT server via WiFi.
 
 The BLE scanning device is configured via a Web Frontend which is inspired by [Tasmota](https://github.com/arendst/Tasmota).
+
+<div style="float:left;">
+<img src="Ressources/Screenshots/BLE-Scanner-Main.png" height="500px">
+<img src="Ressources/Screenshots/BLE-Scanner-Config.png" height="500px">
+<img src="Ressources/Screenshots/BLE-Scanner-Info.png" height="500px">
+</div>
 
 The BLE-Scanner doesn't need any external circuit -- just flash the software on it and configure the device.
 
@@ -39,7 +46,7 @@ To intall the ESP32 device support in the Arduino IDE, do as follows:
 ## Initialization Procedure
 
 Whenever the BLE-Scanner starts and is not able to connect to your WiFi (eg. because of a missing configuration due to a fresh installation), it enters the configuration mode.
-In configuration mode the BLE-Scanner opens an WiFi Access Point with the SSID `BLE-Scanner-AP-XX:XX:XX`. Connect to it with your smartphone or notebook and configure at lease the WiFi settings. That restart the BLE-Scanner.
+In configuration mode the BLE-Scanner opens an WiFi Access Point with the SSID `BLE-Scanner-AP-XX:XX:XX`. Connect to it with your smartphone or notebook and configure at lease the WiFi settings. Than restart the BLE-Scanner, and continue the configuration.
 
 To flash, open the sketch, build and upload to a connected ESP32. Then follow the **Initialization Procedure** above.
 
@@ -57,3 +64,7 @@ Then follow the **Initialization Procedure** above.
 ### [Helper Script](scripts/)
 
 Thie directory holds some helper script.
+
+### [Screenshots](Ressources/Screenshots/)
+
+Thie directory holds some screenshots of the web interface.
