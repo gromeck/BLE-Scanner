@@ -26,7 +26,7 @@
 #ifndef __UTIL_H__
 #define __UTIL_H__ 1
 
-#include <Time.h>
+#include <TimeLib.h>
 #include "wifi.h"
 
 #if DBG
@@ -50,7 +50,13 @@
 #define MAX(a,b)    (((a) > (b)) ? (a) : (b))
 #define CHECK_RANGE(value,lower,upper)  MAX(MIN((value),(upper)),(lower))
 #define FIX_RANGE(value,lower,upper)  { value = CHECK_RANGE((value),(lower),(upper)); }
- 
+
+#ifndef SECS_PER_HOUR
+#define SECS_PER_HOUR   (60 * 60)
+#endif
+
+#define MAC_ADDR_LEN  6
+
 /*
    convert an IP address to a C string
 */
