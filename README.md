@@ -62,9 +62,9 @@ Follow the section **Prepare the build environtment** above, then open the sketc
 Then follow the **Initialization Procedure** above.
 
 
-### [Helper Script](scripts/)
+### [Helper Script](Ressources/Scripts/)
 
-Thie directory holds some helper script.
+Thie directory holds the helper script to download and activate the bluetooth manufacturer list.
 
 ### [Screenshots](Ressources/Screenshots/)
 
