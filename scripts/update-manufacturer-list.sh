@@ -38,7 +38,7 @@
 
 URL="https://www.bluetooth.com/specifications/assigned-numbers/company-identifiers/"
 FILE="CompanyIdentfiers - CSV.csv"
-TARGET="../BLE-Scanner/manufacturer-list.h"
+TARGET="../BLE-Scanner/ble-manufacturer-list.h"
 
 cat <<EOM
 As the offical file with all assigned manufacurer IDs is prevented
