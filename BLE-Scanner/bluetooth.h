@@ -26,48 +26,57 @@
 #ifndef __BLUETOOTH_H__
 #define __BLUETOOTH_H__ 1
 
+#include <BLEDevice.h>
+#include <BLEUtils.h>
+#include <BLEScan.h>
+#include <BLEAdvertisedDevice.h>
 #include "config.h"
-#include "macaddr.h"
-
-typedef enum {
-  BLUETOOTH_MODE_IDLE = 0,
-  BLUETOOTH_MODE_BTC_STARTED,
-  BLUETOOTH_MODE_BTC_STOPPED,
-  BLUETOOTH_MODE_BLE_STARTED,
-  BLUETOOTH_MODE_BLE_STOPPED,
-} BLUETOOTH_MODE_T;
+#include "ble-manufacturer.h"
 
 /*
     Bluetooth settings
 */
-#define BLUETOOTH_BTC_SCAN_TIME_MIN           0             // seconds
-#define BLUETOOTH_BTC_SCAN_TIME_MAX           (3 * 60)
-#define BLUETOOTH_BLE_SCAN_TIME_MIN           0             // seconds
-#define BLUETOOTH_BLE_SCAN_TIME_MAX           (3 * 60)
-#define BLUETOOTH_PAUSE_TIME_MIN              0             // seconds
+#define BLUETOOTH_SCAN_TIME_MIN               3             // seconds
+#define BLUETOOTH_SCAN_TIME_MAX               (3 * 60)
+#define BLUETOOTH_PAUSE_TIME_MIN              10            // seconds
 #define BLUETOOTH_PAUSE_TIME_MAX              (24 * 60 * 60)
-#define BLUETOOTH_ACTIVESCAN_TIMEOUT_MIN      0             // seconds
+#define BLUETOOTH_ACTIVESCAN_TIMEOUT_MIN      60            // seconds
 #define BLUETOOTH_ACTIVESCAN_TIMEOUT_MAX      (24 * 60 * 60)
 #define BLUETOOTH_ABSENCE_CYCLES_MIN          1             // cycles
 #define BLUETOOTH_ABSENCE_CYCLES_MAX          10
 #define BLUETOOTH_PUBLISH_TIMEOUT_MIN         10            // seconds
 #define BLUETOOTH_PUBLISH_TIMEOUT_MAX         (60 * 60)
+#define BLUETOOTH_BATTCHECK_TIMEOUT_MIN       60            // seconds
+#define BLUETOOTH_BATTCHECK_TIMEOUT_MAX       (24 * 60 * 60)
 
 
 /*
- * setup the bluetooth stuff
- */
+    service & characteristic UUIDs for the battery
+*/
+#define BLEBatteryService           BLEUUID((uint16_t)0x180F)
+#define BLEBatteryCharacteristics   BLEUUID((uint16_t)0x2A19)
+
+
+/*
+   setup the bluetooth stuff
+*/
 void BluetoothSetup(void);
 
 /*
- * do the cyclic update
- */
+   do the cyclic update
+*/
 void BluetoothUpdate(void);
 
 /*
-   init the scanning
+   init/exit the scanning
 */
-bool BluetoothStartScan(void);
+bool BluetoothScanStart(void);
+bool BluetoothScanStop(void);
+
+/*
+   get battery level
+*/
+bool BluetoothBatteryCheck(BLEAddress device, uint8_t *battery_level);
 
 #endif
 
