@@ -490,6 +490,10 @@ void HttpSetup(void)
                     "<td>Server</td>"
                     "<td>" + _config.ntp.server + "</td>"
                     "</tr>"
+                    "<tr>"
+                    "<td>Timezone</td>"
+                    "<td>" + _config.ntp.timezone + "</td>"
+                    "</tr>"
 
                     "<tr><th colspan=2>MQTT</th></tr>"
                     "<tr>"
