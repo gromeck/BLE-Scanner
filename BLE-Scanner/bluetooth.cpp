@@ -182,7 +182,7 @@ class BLEScannerClientCallbacks : public BLEClientCallbacks {
 /*
    get the charactersitics from the battery service
 */
-bool BluetoothBatteryCheck(BLEAddress device,uint8_t *battery_level)
+bool BluetoothBatteryCheck(BLEAddress device, uint8_t *battery_level)
 {
 #if DBG_BT
   DbgMsg("BLE: create a client ...");
@@ -193,7 +193,10 @@ bool BluetoothBatteryCheck(BLEAddress device,uint8_t *battery_level)
   DbgMsg("BLE: connect device %s ...", device.toString().c_str());
 #endif
   client->setClientCallbacks(new BLEScannerClientCallbacks());
-  client->connect(device);
+  if (!client->connect(device)) {
+    LogMsg("BLE: couldn't connect to client device %s to read battery level", device.toString().c_str());
+    return false;
+  }
 
   /*
      select the service
@@ -204,6 +207,7 @@ bool BluetoothBatteryCheck(BLEAddress device,uint8_t *battery_level)
   BLERemoteService *service = client->getService(BLEBatteryService);
 
   if (!service) {
+    LogMsg("BLE: couldn't create service for client device %s to read battery level", device.toString().c_str());
     client->disconnect();
     return false;
   }
@@ -217,6 +221,7 @@ bool BluetoothBatteryCheck(BLEAddress device,uint8_t *battery_level)
   BLERemoteCharacteristic *characteristic = service->getCharacteristic(BLEBatteryCharacteristics);
 
   if (!characteristic) {
+    LogMsg("BLE: couldn't create characteristics for client device %s to read battery level", device.toString().c_str());
     client->disconnect();
     return false;
   }
