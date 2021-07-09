@@ -96,6 +96,7 @@ bool ScanDevAdd(BLEAddress addr, const char *name, const uint16_t manufacturer_i
        pick the last device from the list -- it will get overwritten
     */
     device = _scandev_last;
+    LogMsg("DEV: number of scanned devices in list: %d", _scandev_count);
   }
 
   if (device) {
@@ -123,6 +124,7 @@ bool ScanDevAdd(BLEAddress addr, const char *name, const uint16_t manufacturer_i
     if ((device = (SCANDEV_T *) malloc(sizeof(SCANDEV_T)))) {
       memset(device, 0, sizeof(SCANDEV_T));
     }
+    LogMsg("DEV: number of scanned devices in list: %d", _scandev_count);
   }
 
   if (device) {
@@ -205,7 +207,8 @@ void ScanDevListHTML(void (*callback)(const String& content))
   /*
      setup the list header
   */
-  (*callback)("Bluetooth Scan List: " + String(TimeToString(now())) + "<p>" +
+  (*callback)("<p>Total scanned Bluetooth devices: " + String(_scandev_count) +
+              " @ " + String(TimeToString(now())) + "</p>" +
               "<table class='btscanlist'>"
               "<tr>"
               "<th>State</th>"
@@ -242,14 +245,7 @@ void ScanDevListHTML(void (*callback)(const String& content))
                 "<td colspan=9>" + String("empty list") + "</td>"
                 "</tr>");
   }
-
-  /*
-       setup the list footer
-  */
-  (*callback)("<tr>"
-              "<th colspan=9>Total of " + String(_scandev_count) + " scanned bluetooth devices.</th>"
-              "</tr>"
-              "</table>");
+  (*callback)("</table>");
 }
 
 /*
