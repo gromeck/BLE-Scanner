@@ -142,24 +142,57 @@ bool ScanDevAdd(BLEAddress addr, const char *name, const uint16_t manufacturer_i
     _scandev_count++;
 
     /*
-       copy the data into the device
+       copy the data into the device -- whenever the data changed
     */
     device->addr = addr;
-    if (name && name[0])
+    if (name && strncmp(device->name, name, SCANDEV_NAME_LENGTH)) {
+      /*
+         device name changed
+      */
       strncpy(device->name, name, SCANDEV_NAME_LENGTH);
-    device->manufacturer_id = manufacturer_id;
-    device->manufacturer = BLEManufacturerLookup(manufacturer_id, "");
-    device->has_battery = has_battery;
-    device->battery_level = battery_level;
-    device->rssi = rssi;
-    device->last_seen = now();
+      device->publish_name = true;
+    }
+    if (device->manufacturer_id != manufacturer_id) {
+      /*
+         manufacturer changed
+      */
+      device->manufacturer_id = manufacturer_id;
+      device->manufacturer = BLEManufacturerLookup(manufacturer_id, "");
+      device->publish_manufacturer = true;
+    }
+    if (device->has_battery != has_battery || device->battery_level != battery_level) {
+      /*
+         battery state or level changed
+      */
+      device->has_battery = has_battery;
+      device->battery_level = battery_level;
+      device->publish_battery = true;
+    }
+    if (device->rssi != rssi) {
+      /*
+         rssi changed
+      */
+      device->rssi = rssi;
+      device->publish_rssi = true;
+    }
     if (!device->present) {
       /*
          the prensence changed from absent to present
       */
       device->present = true;
-      device->publish = true;
+      device->publish_presence = true;
     }
+
+    /*
+       last seen is always updated
+    */
+    device->last_seen = now();
+
+    /*
+       mark this device in general to publish
+    */
+    device->publish = true;
+
     DBG_SCANDEVLIST("after insert");
   }
 
@@ -167,36 +200,69 @@ bool ScanDevAdd(BLEAddress addr, const char *name, const uint16_t manufacturer_i
 }
 
 /*
-   publish all devices which are not yet published
-*/
-static void ScanDevPublishMQTT(SCANDEV_T *device)
-{
-  /*
-     publish the device state
-  */
-  String Addr = String(device->addr.toString().c_str());
-  Addr.toUpperCase();
-
-  MqttPublish(Addr + "/last_seen", String(device->last_seen));
-  if (device->present || _config.bluetooth.publish_absence)
-    MqttPublish(Addr + "/presence", (device->present) ? "present" : "absent");
-  MqttPublish(Addr + "/rssi", String(device->rssi));
-  MqttPublish(Addr + "/name", String(device->name));
-  MqttPublish(Addr + "/manufacturer_id", String(BLEManufacturerIdHex(device->manufacturer_id)));
-  MqttPublish(Addr + "/manufacturer", String(device->manufacturer));
-  MqttPublish(Addr + "/battery", String(device->has_battery ? 1 : 0));
-  MqttPublish(Addr + "/battery_level", String(device->battery_level));
-  device->publish = false;
-  device->last_published = now();
-}
-
-/*
    check the battery level
 */
 void ScanDevCheckBattery(SCANDEV_T *device)
 {
-  BluetoothBatteryCheck(device->addr,&device->battery_level);
+  uint8_t battery_level = device->battery_level;
+
+  if (BluetoothBatteryCheck(device->addr, &battery_level)) {
+    /*
+       we obviuosly had success reading the battery level ...
+    */
+    if (device->battery_level != battery_level) {
+      /*
+         ... and it has changed
+      */
+      device->battery_level = battery_level;
+      device->publish_battery = true;
+    }
+  }
+
+  /*
+     even if the check failed, we will have to wait for the next cycle
+  */
   device->last_battcheck = now();
+}
+
+/*
+   publish all devices which are not yet published
+*/
+static void ScanDevPublishMQTT(SCANDEV_T *device)
+{
+  if (device->publish) {
+    /*
+       publish the device state
+    */
+    String Addr = String(device->addr.toString().c_str());
+    Addr.toUpperCase();
+
+    MqttPublish(Addr + "/last_seen", String(device->last_seen));
+    if (device->publish_presence && (device->present || _config.bluetooth.publish_absence)) {
+      MqttPublish(Addr + "/presence", (device->present) ? "present" : "absent");
+      device->publish_presence = false;
+    }
+    if (device->publish_rssi) {
+      MqttPublish(Addr + "/rssi", String(device->rssi));
+      device->publish_rssi = false;
+    }
+    if (device->publish_name) {
+      MqttPublish(Addr + "/name", String(device->name));
+      device->publish_name = false;
+    }
+    if (device->publish_manufacturer) {
+      MqttPublish(Addr + "/manufacturer_id", String(BLEManufacturerIdHex(device->manufacturer_id)));
+      MqttPublish(Addr + "/manufacturer", String(device->manufacturer));
+      device->publish_manufacturer = false;
+    }
+    if (device->publish_battery) {
+      MqttPublish(Addr + "/battery", String(device->has_battery ? 1 : 0));
+      MqttPublish(Addr + "/battery_level", String(device->battery_level));
+      device->publish_battery = false;
+    }
+    device->publish = false;
+    device->last_published = now();
+  }
 }
 
 /*
@@ -288,8 +354,7 @@ void ScanDevUpdate(void)
         device->publish = true;
       }
 
-      if (device->publish)
-        ScanDevPublishMQTT(device);
+      ScanDevPublishMQTT(device);
 
       if (device->has_battery && device->present && now() - device->last_battcheck > _config.bluetooth.battcheck_timeout)
         ScanDevCheckBattery(device);

@@ -75,6 +75,12 @@ typedef struct _scandev_device {
   /*
      MQTT publishing
   */
+  bool publish_last_seen;
+  bool publish_name;
+  bool publish_manufacturer;
+  bool publish_battery;
+  bool publish_rssi;
+  bool publish_presence;
   bool publish;
   time_t last_published;
 
