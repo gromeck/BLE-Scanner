@@ -40,30 +40,37 @@ class BLEScannerAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
     void onResult(BLEAdvertisedDevice advertisedDevice)
     {
 #if DBG_BT
-      DbgMsg("BLE: found advertised device: %s", advertisedDevice.getAddress().toString().c_str());
+      DbgMsg("BLE: found advertised device: %s  address type: 0x%02x", advertisedDevice.getAddress().toString().c_str(), advertisedDevice.getAddressType());
 #endif
-      /*
-         check the service UUIDs
-      */
-      bool hasBatteryService = false;
 
-      for (int n = 0; n < advertisedDevice.getServiceUUIDCount(); n++) {
-        hasBatteryService = (hasBatteryService || advertisedDevice.getServiceUUID(n).equals(BLEBatteryService));
+      /*
+         we only put devices onto the list, which don't use random addresses
+      */
+      if (advertisedDevice.getAddressType() == BLE_ADDR_TYPE_PUBLIC) {
+        /*
+           check the service UUIDs
+        */
+        bool hasBatteryService = false;
+
+        for (int n = 0; n < advertisedDevice.getServiceUUIDCount(); n++) {
+          hasBatteryService = (hasBatteryService || advertisedDevice.getServiceUUID(n).equals(BLEBatteryService));
+        }
+
+        /*
+           set the manufacturer ids
+        */
+        uint16_t manufacturer_id = BLE_MANUFACTURER_ID_UNKNOWN;
+
+        if (advertisedDevice.haveManufacturerData())
+          advertisedDevice.getManufacturerData().copy((char *) &manufacturer_id, 2, 0);
+
+        ScanDevAdd(advertisedDevice.getAddress(),
+                   advertisedDevice.getName().c_str(),
+                   manufacturer_id,
+                   advertisedDevice.getRSSI(),
+                   hasBatteryService);
+
       }
-
-      /*
-         set the manufacturer ids
-      */
-      uint16_t manufacturer_id = BLE_MANUFACTURER_ID_UNKNOWN;
-
-      if (advertisedDevice.haveManufacturerData())
-        advertisedDevice.getManufacturerData().copy((char *) &manufacturer_id, 2, 0);
-
-      ScanDevAdd(advertisedDevice.getAddress(),
-                 advertisedDevice.getName().c_str(),
-                 manufacturer_id,
-                 advertisedDevice.getRSSI(),
-                 hasBatteryService);
     }
 };
 
