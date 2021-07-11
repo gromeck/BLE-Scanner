@@ -27,8 +27,8 @@
 #define __STATE_H__ 1
 
 /*
- * the device will reboot if there is inactivity for this period in configuration mode
- */
+   the device will reboot if there is inactivity for this period in configuration mode
+*/
 #define STATE_CONFIGURING_TIMEOUT   (5 * 60)
 
 /*
@@ -63,9 +63,9 @@ int StateUpdate(void);
 void StateChange(int state);
 
 /*
- * change the timeout of a state
- */
-void StateModifyTimeout(int state,unsigned int timeout);
+   change the timeout of a state
+*/
+void StateModifyTimeout(int state, unsigned int timeout);
 
 /*
    check if we are in a certain state

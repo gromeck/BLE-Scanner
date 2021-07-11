@@ -158,7 +158,7 @@ void StateModifyTimeout(int state, unsigned int timeout)
 #if DBG_STATE
   DbgMsg("STATE: modifing timeout for state %d: %lums", state, timeout);
 #endif
-  
+
   for (int n = 0; n < sizeof(_states) / sizeof(_states[0]); n++) {
     if (_states[n].state == state) {
 #if DBG_STATE

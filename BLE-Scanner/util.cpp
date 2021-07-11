@@ -54,7 +54,7 @@ IPAddress BytesToIPAddress(uint8_t *bytes)
 /*
 **    generic conversion
 */
-const char *AddressToString(byte *addr, int addrlen, bool dec,char sep)
+const char *AddressToString(byte *addr, int addrlen, bool dec, char sep)
 {
 #define ROTATE_BUFFER 4
   static int rotate = -1;
@@ -122,8 +122,8 @@ void dump(String title, const void *addr, const int len)
 
 
 /*
- * get a time in ascii
- */
+   get a time in ascii
+*/
 const char *TimeToString(time_t t)
 {
 #define ROTATE_BUFFER 4
@@ -148,7 +148,7 @@ void LogMsg(const char *fmt, ...)
   char msg[256];
 
   va_start(args, fmt);
-  vsnprintf(msg,sizeof(msg) - 1, fmt, args);
+  vsnprintf(msg, sizeof(msg) - 1, fmt, args);
   va_end(args);
 
   if (Serial) {

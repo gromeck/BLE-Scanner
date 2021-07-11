@@ -86,7 +86,7 @@ int EepromRead(const int addr, const int len, void *buffer)
   for (n = 0; n < len; n++) {
     ((byte *) buffer)[n] = EEPROM.read(addr + n);
 #if DBG_EEPROM
-    DbgMsg("EEPROM.read: addr[%d] = %u",addr + n,((byte *) buffer)[n]);
+    DbgMsg("EEPROM.read: addr[%d] = %u", addr + n, ((byte *) buffer)[n]);
 #endif
   }
 
@@ -101,7 +101,7 @@ void EepromWrite(const int addr, const int len, const void *buffer)
   for (int n = 0; n < len; n++) {
     EEPROM.write(addr + n, ((byte *) buffer)[n]);
 #if DBG_EEPROM
-    DbgMsg("EEPROM.write: addr[%d] = %u",addr + n,((byte *) buffer)[n]);
+    DbgMsg("EEPROM.write: addr[%d] = %u", addr + n, ((byte *) buffer)[n]);
 #endif
   }
   EEPROM.commit();

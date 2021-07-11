@@ -44,8 +44,8 @@
 #define RSSI2METER(rssi)  (round(pow(10.0,((-69.0 - (rssi)) / (10.0 * 2.0))) * 100.0) / 100.0)
 
 /*
- * check/fix the range of a value
- */
+   check/fix the range of a value
+*/
 #define MIN(a,b)    (((a) < (b)) ? (a) : (b))
 #define MAX(a,b)    (((a) > (b)) ? (a) : (b))
 #define CHECK_RANGE(value,lower,upper)  MAX(MIN((value),(upper)),(lower))

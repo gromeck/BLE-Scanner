@@ -31,18 +31,18 @@
 #define BLE_MANUFACTURER_ID_UNKNOWN   0xffff
 
 /*
- * setup
- */
+   setup
+*/
 void BLEManufacturerSetup(void);
 
 /*
    lookup the vendor by the mac address
 */
-const char *BLEManufacturerLookup(const uint16_t id,const char *none);
+const char *BLEManufacturerLookup(const uint16_t id, const char *none);
 
 /*
- * return a static string with the manufacturer ID
- */
+   return a static string with the manufacturer ID
+*/
 const char *BLEManufacturerIdHex(const uint16_t id);
 
 #endif

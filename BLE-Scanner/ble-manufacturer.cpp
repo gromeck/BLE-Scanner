@@ -64,7 +64,7 @@ void BLEManufacturerSetup(void)
 /*
    lookup the vendor by the mac address
 */
-const char *BLEManufacturerLookup(const uint16_t id,const char *none)
+const char *BLEManufacturerLookup(const uint16_t id, const char *none)
 {
 #if DBG_MANUFACTURER
   DbgMsg("BLEManufacturerLookup: looking up %04x", id);
@@ -91,12 +91,12 @@ const char *BLEManufacturerLookup(const uint16_t id,const char *none)
 }
 
 /*
- * return a static string with the manufacturer ID
- */
+   return a static string with the manufacturer ID
+*/
 const char *BLEManufacturerIdHex(const uint16_t id)
 {
   static char _hexid[8];
 
-  sprintf(_hexid,"0x%04X",id);
+  sprintf(_hexid, "0x%04X", id);
   return _hexid;
 }/**/

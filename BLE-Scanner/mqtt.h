@@ -41,8 +41,8 @@
 #define MQTT_TOPIC_DEVICE       "/device"
 
 /*
- * if the MQTT connection failed, wait this time before retrying
- */
+   if the MQTT connection failed, wait this time before retrying
+*/
 #define MQTT_WAIT_TO_RECONNECT  10
 
 /*

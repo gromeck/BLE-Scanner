@@ -44,7 +44,7 @@ bool WifiSetup(void)
        open an AccessPoint
     */
     uint8_t mac[MAC_ADDR_LEN];
-    strcpy(_AP_SSID, (String(WIFI_AP_SSID_PREFIX) + String(AddressToString((byte *) WiFi.macAddress(mac) + sizeof(mac) - WIFI_AP_SSID_USE_LAST_MAC_DIGITS, WIFI_AP_SSID_USE_LAST_MAC_DIGITS, false,':'))).c_str());
+    strcpy(_AP_SSID, (String(WIFI_AP_SSID_PREFIX) + String(AddressToString((byte *) WiFi.macAddress(mac) + sizeof(mac) - WIFI_AP_SSID_USE_LAST_MAC_DIGITS, WIFI_AP_SSID_USE_LAST_MAC_DIGITS, false, ':'))).c_str());
 
     LogMsg("WIFI: opening access point with SSID %s ...", _AP_SSID);
     WiFi.mode(WIFI_AP);
@@ -161,7 +161,7 @@ String WifiGetMacAddr(void)
 {
   uint8_t mac[MAC_ADDR_LEN];
 
-  return String(AddressToString((byte *) WiFi.macAddress(mac), sizeof(mac), false,':'));
+  return String(AddressToString((byte *) WiFi.macAddress(mac), sizeof(mac), false, ':'));
 }
 
 
