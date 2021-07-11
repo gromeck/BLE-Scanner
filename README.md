@@ -62,6 +62,15 @@ Follow the section **Prepare the build environtment** above, then open the sketc
 Then follow the **Initialization Procedure** above.
 
 
+### [Case](Case/)
+
+In this directory you will find a 3D model of an enclosure for the device.
+These models are designed with [OpenSCAD](https://www.openscad.org/). Use the latest version of OpenSCAD (nightly build).
+The lower and upper shells of the enclosure are simply snapped together -- without any screws.
+
+![Case](Case/BLE-Scanner.png)
+
+
 ### [Scripts](Ressources/Scripts/)
 
 Thie directory holds the helper script to download and activate the bluetooth manufacturer list.
