@@ -40,8 +40,9 @@ To intall the ESP32 device support in the Arduino IDE, do as follows:
   * select the hightest `Upload Speed`
   * select the right `CPU Frequency` for your board
   * select the `Flash Frequency`of `80MHz`
-  * select the `Partition Scheme` of `No OTA (Large App)`
+  * select the `Partition Scheme` of `Minimal SPIFFS (Large APPS with OTA)`
 * Under `Tools` - `Manage Libraries` install the following libraries, if not yet installed:
+  * `NimBLE-Arduino` - see [https://github.com/h2zero/NimBLE-Arduino](https://github.com/h2zero/NimBLE-Arduino) for documentation
   * `PubSubClient` - see [https://pubsubclient.knolleary.net/](https://pubsubclient.knolleary.net/) for documentation
 
 ## Initialization Procedure
