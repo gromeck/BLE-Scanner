@@ -25,35 +25,37 @@
 
 #include "config.h"
 #include "state.h"
-#include "bluetooth.h"
 #include "mqtt.h"
+#include "bluetooth.h"
 #include "ble-manufacturer.h"
 #include "scandev.h"
 #include "util.h"
 
-static BLEScan *_scan = NULL;
+static NimBLEScan *_scan = NULL;
 static time_t _last_scan = 0;
 static time_t _last_activescan = 0;
 
-class BLEScannerAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
+class BLEScannerAdvertisedDeviceCallbacks : public NimBLEAdvertisedDeviceCallbacks
 {
-    void onResult(BLEAdvertisedDevice advertisedDevice)
+    void onResult(BLEAdvertisedDevice* advertisedDevice)
     {
 #if DBG_BT
-      DbgMsg("BLE: found advertised device: %s  address type: 0x%02x", advertisedDevice.getAddress().toString().c_str(), advertisedDevice.getAddressType());
+      DbgMsg("BLE: found advertised device: %s  address type: 0x%02x", advertisedDevice->getAddress().toString().c_str(), advertisedDevice->getAddressType());
+      if (advertisedDevice->getAppearance())
+        DbgMsg("BLE: found advertised device: %s  appearance: 0x%02x", advertisedDevice->getAddress().toString().c_str(), advertisedDevice->getAppearance());
 #endif
 
       /*
          we only put devices onto the list, which don't use random addresses
       */
-      if (advertisedDevice.getAddressType() == BLE_ADDR_TYPE_PUBLIC) {
+      if (advertisedDevice->getAddressType() == BLE_ADDR_PUBLIC) {
         /*
            check the service UUIDs
         */
         bool hasBatteryService = false;
 
-        for (int n = 0; n < advertisedDevice.getServiceUUIDCount(); n++) {
-          hasBatteryService = (hasBatteryService || advertisedDevice.getServiceUUID(n).equals(BLEBatteryService));
+        for (int n = 0; n < advertisedDevice->getServiceUUIDCount(); n++) {
+          hasBatteryService = (hasBatteryService || advertisedDevice->getServiceUUID(n).equals(BLEBatteryService));
         }
 
         /*
@@ -61,13 +63,13 @@ class BLEScannerAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
         */
         uint16_t manufacturer_id = BLE_MANUFACTURER_ID_UNKNOWN;
 
-        if (advertisedDevice.haveManufacturerData())
-          advertisedDevice.getManufacturerData().copy((char *) &manufacturer_id, 2, 0);
+        if (advertisedDevice->haveManufacturerData())
+          advertisedDevice->getManufacturerData().copy((char *) &manufacturer_id, 2, 0);
 
-        ScanDevAdd(advertisedDevice.getAddress(),
-                   advertisedDevice.getName().c_str(),
+        ScanDevAdd(advertisedDevice->getAddress(),
+                   advertisedDevice->getName().c_str(),
                    manufacturer_id,
-                   advertisedDevice.getRSSI(),
+                   advertisedDevice->getRSSI(),
                    hasBatteryService);
 
       }
@@ -101,11 +103,14 @@ void BluetoothSetup(void)
   DbgMsg("BLE: init ...");
 #endif
 
+  NimBLEDevice::setScanFilterMode(CONFIG_BTDM_SCAN_DUPL_TYPE_DEVICE);
+  NimBLEDevice::setScanDuplicateCacheSize(200);
+
   /*
      init the device
   */
-  if (!BLEDevice::getInitialized())
-    BLEDevice::init(__TITLE__);
+  if (!NimBLEDevice::getInitialized())
+    NimBLEDevice::init(__TITLE__);
 
   /*
      create a scan
@@ -113,10 +118,10 @@ void BluetoothSetup(void)
 #if DBG_BT
   DbgMsg("BLE: create a scan ...");
 #endif
-  if (!_scan && !(_scan = BLEDevice::getScan())) {
-    LogMsg("BLE: BLEDevice::getScan() failed");
+  if (!_scan && !(_scan = NimBLEDevice::getScan())) {
+    LogMsg("BLE: NimBLEDevice::getScan() failed");
   }
-  _scan->setAdvertisedDeviceCallbacks(new BLEScannerAdvertisedDeviceCallbacks(), false, true);
+  _scan->setAdvertisedDeviceCallbacks(new BLEScannerAdvertisedDeviceCallbacks(), false);
 }
 
 /*
@@ -179,10 +184,10 @@ bool BluetoothScanStop(void)
 /*
    callback class to connect to the device
 */
-class BLEScannerClientCallbacks : public BLEClientCallbacks {
-    void onConnect(BLEClient *client) {
+class BLEScannerClientCallbacks : public NimBLEClientCallbacks {
+    void onConnect(NimBLEClient *client) {
     }
-    void onDisconnect(BLEClient* pclient) {
+    void onDisconnect(NimBLEClient* pclient) {
     }
 };
 
@@ -194,7 +199,7 @@ bool BluetoothBatteryCheck(BLEAddress device, uint8_t *battery_level)
 #if DBG_BT
   DbgMsg("BLE: create a client ...");
 #endif
-  BLEClient *client = BLEDevice::createClient();
+  NimBLEClient *client = NimBLEDevice::createClient();
 
 #if DBG_BT
   DbgMsg("BLE: connect device %s ...", device.toString().c_str());
@@ -211,7 +216,7 @@ bool BluetoothBatteryCheck(BLEAddress device, uint8_t *battery_level)
 #if DBG_BT
   DbgMsg("BLE: create remote service for battery service ...");
 #endif
-  BLERemoteService *service = client->getService(BLEBatteryService);
+  NimBLERemoteService *service = client->getService(BLEBatteryService);
 
   if (!service) {
     LogMsg("BLE: couldn't create service for client device %s to read battery level", device.toString().c_str());
@@ -225,7 +230,7 @@ bool BluetoothBatteryCheck(BLEAddress device, uint8_t *battery_level)
 #if DBG_BT
   DbgMsg("BLE: get characteristics ...");
 #endif
-  BLERemoteCharacteristic *characteristic = service->getCharacteristic(BLEBatteryCharacteristics);
+  NimBLERemoteCharacteristic *characteristic = service->getCharacteristic(BLEBatteryCharacteristics);
 
   if (!characteristic) {
     LogMsg("BLE: couldn't create characteristics for client device %s to read battery level", device.toString().c_str());
@@ -236,7 +241,7 @@ bool BluetoothBatteryCheck(BLEAddress device, uint8_t *battery_level)
 #if DBG_BT
     DbgMsg("BLE: reading characteristic");
 #endif
-    *battery_level = characteristic->readUInt8();
+    *battery_level = characteristic->readValue<uint8_t>();
 #if DBG_BT
     DbgMsg("BLE: characteristic value=%u", *battery_level);
 #endif

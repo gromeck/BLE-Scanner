@@ -25,11 +25,7 @@
 
 #ifndef __BLUETOOTH_H__
 #define __BLUETOOTH_H__ 1
-
-#include <BLEDevice.h>
-#include <BLEUtils.h>
-#include <BLEScan.h>
-#include <BLEAdvertisedDevice.h>
+#include <NimBLEDevice.h>
 #include "config.h"
 #include "ble-manufacturer.h"
 

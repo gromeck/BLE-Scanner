@@ -27,8 +27,8 @@
 #define __SCANDEV_H__ 1
 
 #include "config.h"
+#include "bluetooth.h"
 #include "ble-manufacturer.h"
-#include "BLEAddress.h"
 
 /*
    how mandy device should be keep in our list
