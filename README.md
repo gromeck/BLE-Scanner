@@ -45,6 +45,12 @@ To intall the ESP32 device support in the Arduino IDE, do as follows:
   * `NimBLE-Arduino` - see [https://github.com/h2zero/NimBLE-Arduino](https://github.com/h2zero/NimBLE-Arduino) for documentation
   * `PubSubClient` - see [https://pubsubclient.knolleary.net/](https://pubsubclient.knolleary.net/) for documentation
 
+## Update Procedure (OTA)
+
+Once you have the ESP32 device flashed with the BLE-Scanner, and maybe distributed a few of these devices in your infrastructure,
+you can use the Firemware Upgrade procedure where a new build SW version can by flashed over the air (OTA).
+Select _Export compiled Binary_ under the 'Sketch' menu and upload the resulting file in the sketchs home in the BLE-Scanner.
+
 ## Initialization Procedure
 
 Whenever the BLE-Scanner starts and is not able to connect to your WiFi (eg. because of a missing configuration due to a fresh installation), it enters the configuration mode.
