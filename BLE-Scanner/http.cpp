@@ -24,6 +24,7 @@
 */
 
 #include <WebServer.h>
+#include <Update.h>
 #include "config.h"
 #include "http.h"
 #include "wifi.h"
@@ -97,6 +98,7 @@ void HttpSetup(void)
                     _html_header +
                     "<form action='/config' method='get'><button>Configuration</button></form><p>"
                     "<form action='/info' method='get'><button>Information</button></form><p>"
+                    "<form action='/upgrade' method='get'><button>Firmware Upgrade</button></form><p>"
                     "<form action='/restart' method='get' onsubmit=\"return confirm('Are you sure to restart the device?');\"><button class='button redbg'>Restart</button></form><p>"
                     + (StateCheck(STATE_CONFIGURING)
                        ? ""
@@ -145,7 +147,7 @@ void HttpSetup(void)
     */
 #if DBG_HTTP
     for (int n = 0; n < _WebServer.args(); n++ )
-      LogMsg("HTTP: args: %s=%s", _WebServer.argName(n).c_str(), _WebServer.arg(n).c_str());
+      DbgMsg("HTTP: args: %s=%s", _WebServer.argName(n).c_str(), _WebServer.arg(n).c_str());
 #endif
 
     if (_WebServer.hasArg("save")) {
@@ -204,6 +206,9 @@ void HttpSetup(void)
 
   _WebServer.on("/config/device", []() {
     _last_request = millis();
+    if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
+      return _WebServer.requestAuthentication();
+
     _WebServer.send(200, "text/html",
                     _html_header +
                     "<fieldset>"
@@ -234,6 +239,9 @@ void HttpSetup(void)
   });
 
   _WebServer.on("/config/wifi", []() {
+    if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
+      return _WebServer.requestAuthentication();
+
     _last_request = millis();
     _WebServer.send(200, "text/html",
                     _html_header +
@@ -263,6 +271,9 @@ void HttpSetup(void)
   });
 
   _WebServer.on("/config/ntp", []() {
+    if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
+      return _WebServer.requestAuthentication();
+
     _last_request = millis();
     _WebServer.send(200, "text/html",
                     _html_header +
@@ -292,6 +303,9 @@ void HttpSetup(void)
   });
 
   _WebServer.on("/config/mqtt", []() {
+    if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
+      return _WebServer.requestAuthentication();
+
     _last_request = millis();
     _WebServer.send(200, "text/html",
                     _html_header +
@@ -345,6 +359,9 @@ void HttpSetup(void)
   });
 
   _WebServer.on("/config/bluetooth", []() {
+    if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
+      return _WebServer.requestAuthentication();
+
     _last_request = millis();
     _WebServer.send(200, "text/html",
                     _html_header +
@@ -414,9 +431,10 @@ void HttpSetup(void)
   });
 
   _WebServer.on("/config/reset", []() {
-    _last_request = millis();
     if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
       return _WebServer.requestAuthentication();
+
+    _last_request = millis();
 
     /*
        reset the config
@@ -440,9 +458,10 @@ void HttpSetup(void)
   });
 
   _WebServer.on("/info", []() {
-    _last_request = millis();
-    if (_config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
+    if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
       return _WebServer.requestAuthentication();
+
+    _last_request = millis();
 
     _WebServer.send(200, "text/html",
                     _html_header +
@@ -559,9 +578,10 @@ void HttpSetup(void)
   });
 
   _WebServer.on("/restart", []() {
-    _last_request = millis();
     if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
       return _WebServer.requestAuthentication();
+
+    _last_request = millis();
 
     _WebServer.send(200, "text/html",
                     _html_header +
@@ -577,7 +597,119 @@ void HttpSetup(void)
     StateChange(STATE_WAIT_BEFORE_REBOOTING);
   });
 
+  /*
+     firmware upgrade -- form
+  */
+  _WebServer.on("/upgrade", HTTP_GET, []() {
+    if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
+      return _WebServer.requestAuthentication();
+
+    _last_request = millis();
+    DbgMsg("HTTP: /upgrade GET");
+
+    _WebServer.send(200, "text/html",
+                    _html_header +
+
+                    "<fieldset>"
+                    "<legend>"
+                    "<b>&nbsp;Upgrade by file upload&nbsp;</b>"
+                    "</legend>"
+                    "<form method='post' action='/upgrade' enctype='multipart/form-data'>"
+
+                    "<p>"
+                    "<b>Firmware File</b>"
+                    "<br>"
+                    "<input name='fwfile' type='file' placeholder='Firmware File'>"
+                    "</p>"
+
+                    "<button name='upgrade' type='submit' class='button greenbg'>Start upgrade</button>"
+                    "</form>"
+                    "</fieldset>"
+
+                    "<p><form action='/' method='get'><button>Main Menu</button></form><p>"
+                    + _html_footer);
+  });
+
+  /*
+     firmware upgrade -- flash
+  */
+  _WebServer.on("/upgrade", HTTP_POST, []() {
+    if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
+      return _WebServer.requestAuthentication();
+
+    _last_request = millis();
+
+    DbgMsg("HTTP: /upgrade POST upload");
+    _WebServer.send(200, "text/html",
+                    _html_header +
+                    "<div class='msg'>"
+                    "Upgrade " + ((Update.hasError()) ? "failed" : "succeed") +
+                    "<p>"
+                    "Device will restart now."
+                    "</div>"
+                    "<p><form action='/' method='get'><button>Main Menu</button></form><p>"
+                    + _html_footer);
+
+    /*
+        trigger reboot
+    */
+    StateChange(STATE_WAIT_BEFORE_REBOOTING);
+  }, []() {
+    if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
+      return _WebServer.requestAuthentication();
+
+    _last_request = millis();
+
+    /*
+       this is the upload handler
+    */
+    DbgMsg("HTTP: /upgrade POST upload");
+    HTTPUpload& upload = _WebServer.upload();
+
+    if (upload.status == UPLOAD_FILE_START) {
+      /*
+         initiate the upgrade with the maximum possible size
+      */
+      DbgMsg("HTTP: UPLOAD_FILE_START  upload file: %s", upload.filename.c_str());
+      if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
+        DbgMsg("HTTP: upgrade failure: %s", Update.errorString());
+      }
+    }
+    else if (upload.status == UPLOAD_FILE_WRITE) {
+      /*
+        upload the flash file
+      */
+      DbgMsg("HTTP: UPLOAD_FILE_WRITE: current size=%d", upload.currentSize);
+      if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+        DbgMsg("HTTP: upload failure: %s", Update.errorString());
+      }
+    }
+    else if (upload.status == UPLOAD_FILE_END) {
+      /*
+        flash the flash file
+      */
+      DbgMsg("HTTP: UPLOAD_FILE_END");
+      if (Update.end(true)) {
+        if (Update.isFinished()) {
+          DbgMsg("HTTP: upgrade success: %ubytes -- rebooting...", upload.totalSize);
+        }
+        else {
+          DbgMsg("HTTP: upgrade failure: %s", Update.errorString());
+        }
+      }
+      else {
+        DbgMsg("HTTP: upgrade failure: %s", Update.errorString());
+      }
+    }
+  });
+
+
   _WebServer.on("/btlist", []() {
+    if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
+      return _WebServer.requestAuthentication();
+
+    _last_request = millis();
+
     /*
        send the bluetooth list
 
