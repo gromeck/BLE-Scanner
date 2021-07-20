@@ -81,7 +81,9 @@ typedef struct _config_mqtt {
   char password[64];
   char clientID[64];
   char topicPrefix[64];
-  char reserved[64];
+  bool publish_absence;             // only report presence, or also the absence
+  unsigned long publish_timeout;    // don't report a device too often
+  char reserved[58];
 } CONFIG_MQTT_T;
 
 typedef struct _config_bluetooth {
@@ -89,10 +91,8 @@ typedef struct _config_bluetooth {
   unsigned long pause_time;         // pause time after scans before restarting the scans
   unsigned long activescan_timeout; // don't report a device too often
   int absence_cycles;               // number of complete cycles before a device is set absent
-  bool publish_absence;             // only report presence, or also the absence
-  unsigned long publish_timeout;    // don't report a device too often
   unsigned long battcheck_timeout;  // don't check the device battery too often
-  char reserved[64];
+  char reserved[70];
 } CONFIG_BT_T;
 
 /*
