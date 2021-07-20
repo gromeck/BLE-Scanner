@@ -116,6 +116,13 @@ bool ScanDevAdd(BLEAddress addr, const char *name, const uint16_t manufacturer_i
     device->next = NULL;
     _scandev_count--;
     DBG_SCANDEVLIST("after de-listing");
+
+    /*
+       if this device slot was used from another device, we have to clean the record
+    */
+    if (device->addr != addr) {
+      memset(device, 0, sizeof(SCANDEV_T));
+    }
   }
   else {
     /*
@@ -145,7 +152,7 @@ bool ScanDevAdd(BLEAddress addr, const char *name, const uint16_t manufacturer_i
        copy the data into the device -- whenever the data changed
     */
     device->addr = addr;
-    if (name && strncmp(device->name, name, SCANDEV_NAME_LENGTH)) {
+    if (name && *name && strncmp(device->name, name, SCANDEV_NAME_LENGTH)) {
       /*
          device name changed
       */
@@ -228,38 +235,63 @@ void ScanDevCheckBattery(SCANDEV_T *device)
 /*
    publish all devices which are not yet published
 */
-static void ScanDevPublishMQTT(SCANDEV_T *device)
+static void ScanDevPublishMQTT(SCANDEV_T *device, bool all)
 {
-  if (device->publish) {
+  if (all || device->publish) {
     /*
        publish the device state
     */
+    String json = "";
     String Addr = String(device->addr.toString().c_str());
     Addr.toUpperCase();
+    Addr.replace(":", "-");
 
-    MqttPublish(Addr + "/last_seen", String(device->last_seen));
-    if (device->publish_presence && (device->present || _config.bluetooth.publish_absence)) {
-      MqttPublish(Addr + "/presence", (device->present) ? "present" : "absent");
-      device->publish_presence = false;
-    }
-    if (device->publish_rssi) {
-      MqttPublish(Addr + "/rssi", String(device->rssi));
+    if (all || device->publish_rssi) {
+      if (json.length() > 0)
+        json += ",";
+      json += "\"RSSI\":" + String(device->rssi);
       device->publish_rssi = false;
     }
-    if (device->publish_name) {
-      MqttPublish(Addr + "/name", String(device->name));
+    if (all || device->publish_name) {
+      if (json.length() > 0)
+        json += ",";
+      json += "\"Name\":\"" + String(device->name) + "\"";
       device->publish_name = false;
     }
-    if (device->publish_manufacturer) {
-      MqttPublish(Addr + "/manufacturer_id", String(BLEManufacturerIdHex(device->manufacturer_id)));
-      MqttPublish(Addr + "/manufacturer", String(device->manufacturer));
+    if (all || device->publish_manufacturer) {
+      if (json.length() > 0)
+        json += ",";
+      json += "\"ManufacturerId\":\"" + String(BLEManufacturerIdHex(device->manufacturer_id)) + "\"";
+      json += ",";
+      json += "\"Manufacturer\":\"" + String(device->manufacturer) + "\"";
       device->publish_manufacturer = false;
     }
-    if (device->publish_battery) {
-      MqttPublish(Addr + "/battery", String(device->has_battery ? 1 : 0));
-      MqttPublish(Addr + "/battery_level", String(device->battery_level));
+    if (all || device->publish_battery) {
+      if (json.length() > 0)
+        json += ",";
+      json += "\"Battery\":" + String(device->has_battery ? 1 : 0);
+      json += ",";
+      json += "\"BatteryLevel\":" + String(device->battery_level);
       device->publish_battery = false;
     }
+    if (all || json.length() > 0) {
+      /*
+         whenever we publish something, we will also publish the last_seen and the scanning device
+      */
+      json = "\"ScannerCID\":\"" + String(_config.mqtt.clientID) + "\"," + json;
+      json = "\"Scanner\":\"" + String(_config.device.name) + "\"," + json;
+      json = "\"last_seen\":" + String(device->last_seen) + "," + json;
+    }
+    if ((all || device->publish_presence || json.length() > 0) && (device->present || _config.bluetooth.publish_absence)) {
+      /*
+         whenever we publish something, we will also publish the state
+      */
+      json = "\"state\":\"" + String((device->present) ? "present" : "absent") + "\"," + json;
+      device->publish_presence = false;
+    }
+    if (json.length() > 0)
+      MqttPublish(Addr, "{" + json + "}");
+
     device->publish = false;
     device->last_published = now();
   }
@@ -331,6 +363,7 @@ void ScanDevUpdate(void)
   SCANDEV_T *device;
   int absence_timeout = _config.bluetooth.absence_cycles * (_config.bluetooth.scan_time + _config.bluetooth.pause_time);
   static time_t _last = 0;
+  bool all = MqttPublishAll();
 
   if (now() > _last) {
     /*
@@ -354,10 +387,17 @@ void ScanDevUpdate(void)
         device->publish = true;
       }
 
-      ScanDevPublishMQTT(device);
-
-      if (device->has_battery && device->present && now() - device->last_battcheck > _config.bluetooth.battcheck_timeout)
+      if (device->has_battery && device->present && now() - device->last_battcheck > _config.bluetooth.battcheck_timeout) {
+        /*
+           time to check the battery
+        */
         ScanDevCheckBattery(device);
+      }
+
+      /*
+         publish the device
+      */
+      ScanDevPublishMQTT(device, all);
     }
     _last = now();
   }
