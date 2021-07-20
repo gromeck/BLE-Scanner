@@ -27,6 +27,7 @@
 #include "mqtt.h"
 #include "wifi.h"
 #include "util.h"
+#include "ntp.h"
 
 /*
    MQTT context
@@ -35,7 +36,9 @@ static PubSubClient *_mqtt;
 static String _topic_announce;
 static String _topic_control;
 static String _topic_device;
-static unsigned long _mqtt_reconnect_wait = 0;
+static time_t _last_reconnect = 0;
+static time_t _last_status_update = 0;
+static bool _publish_all = true;
 
 /*
    initialize the MQTT context
@@ -47,7 +50,9 @@ void MqttSetup(void)
   */
   if (!_config.mqtt.port)
     _config.mqtt.port = MQTT_PORT_DEFAULT;
-  _config.mqtt.port = min(max(_config.mqtt.port, MQTT_PORT_MIN), MQTT_PORT_MAX);
+  FIX_RANGE(_config.mqtt.port,MQTT_PORT_MIN, MQTT_PORT_MAX);
+  _config.mqtt.publish_absence = _config.mqtt.publish_absence ? true : false;
+  FIX_RANGE(_config.mqtt.publish_timeout, MQTT_PUBLISH_TIMEOUT_MIN, MQTT_PUBLISH_TIMEOUT_MAX);
 
   if (StateCheck(STATE_CONFIGURING))
     return;
@@ -79,7 +84,7 @@ void MqttUpdate(void)
     return;
 
   if (!_mqtt->connected()) {
-    if (millis() > _mqtt_reconnect_wait) {
+    if (now() > _last_reconnect + MQTT_WAIT_TO_RECONNECT) {
       /*
          connect the MQTT server
       */
@@ -93,38 +98,81 @@ void MqttUpdate(void)
                               true,  // willRetain
                               "{ \"state\":\"disconnected\" }");
 
-#if DBG_MQTT
-      DbgMsg("MQTT: connect_status=%d", connect_status);
-#endif
-
       if (connect_status) {
-#if DBG_MQTT
-        DbgMsg("MQTT: connected");
-#endif
         /*
-           publish our connection state
+           we are connected
         */
-#if DBG_MQTT
-        DbgMsg("MQTT: publishing connection state");
-#endif
+        _publish_all = true;
         _mqtt->publish((_topic_announce + "/state").c_str(), "connected", true);
-        _mqtt->publish((_topic_announce + "/ssid").c_str(), WifiGetSSID().c_str(), true);
-        _mqtt->publish((_topic_announce + "/ipaddr").c_str(), WifiGetIpAddr().c_str(), true);
 
         // ... and resubscribe
         _mqtt->subscribe(_topic_control.c_str());
+        _last_status_update = 0;
       }
       else {
         /*
            connection failed
         */
         LogMsg("MQTT: connection failed, rc=%d -- trying again in %d seconds", _mqtt->state(), MQTT_WAIT_TO_RECONNECT);
-        _mqtt_reconnect_wait = millis() + MQTT_WAIT_TO_RECONNECT * 1000;
+        _last_reconnect = now();
       }
+
+#if DBG_MQTT
+      DbgMsg("MQTT: connect_status=%d", connect_status);
+#endif
     }
   }
-  else
+
+  if (_mqtt->connected()) {
+    /*
+       we are connected, so we have to do the cyclic processing
+    */
     _mqtt->loop();
+
+    if (now() > _last_status_update + MQTT_STATUS_UPDATE_CYCLE) {
+      /*
+         it's time to publish our connection state
+      */
+      _last_status_update = now();
+      _publish_all = true;
+#if DBG_MQTT
+      DbgMsg("MQTT: publishing connection state");
+#endif
+
+      String json = "{"
+                    "\"state\":\"connected\","
+                    "\"Time\":\"" + String(TimeToString(now())) + "\","
+                    "\"Uptime\":\"" + String(TimeToString(NtpUptime())) + "\","
+                    "\"UptimeSec\":" + String(NtpUptime()) + ","
+                    "\"Wifi\":{"
+                    "\"SSId\":\"" + WifiGetSSID() + "\","
+                    "\"MacAddress\":\"" + WifiGetMacAddr() + "\","
+                    "\"IpAddress\":\"" + WifiGetIpAddr() + "\","
+                    "\"Channel\":" + WifiGetChannel() + ","
+                    "\"RSSI\":" + WifiGetRSSI() + ","
+                    "\"Signal\":\"" + String(WIFI_RSSI_TO_QUALITY(WifiGetRSSI())) + "%\""
+                    "},"
+                    "\"Version\":\"" + GIT_VERSION + "\""
+                    "}";
+#if DBG_MQTT
+      DbgMsg("MQTT: %s", json.c_str());
+#endif
+      _mqtt->publish_P(_topic_announce.c_str(), json.c_str(), true);
+    }
+  }
+}
+
+/*
+   return true if we should publish allo
+
+   this will be done after a reconnect and from time to time
+*/
+bool MqttPublishAll(void)
+{
+  bool all = _publish_all;
+  
+  _publish_all = false;
+  return all;
 }
 
 /*
@@ -138,5 +186,5 @@ void MqttPublish(String suffix, String msg)
   DbgMsg("MQTT: publishing: %s=%s", topic.c_str(), msg.c_str());
 #endif
 
-  _mqtt->publish(topic.c_str(), msg.c_str(), msg.length());
+  _mqtt->publish_P(topic.c_str(), msg.c_str(), msg.length());
 }/**/

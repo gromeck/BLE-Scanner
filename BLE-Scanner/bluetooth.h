@@ -40,8 +40,6 @@
 #define BLUETOOTH_ACTIVESCAN_TIMEOUT_MAX      (24 * 60 * 60)
 #define BLUETOOTH_ABSENCE_CYCLES_MIN          1             // cycles
 #define BLUETOOTH_ABSENCE_CYCLES_MAX          10
-#define BLUETOOTH_PUBLISH_TIMEOUT_MIN         10            // seconds
-#define BLUETOOTH_PUBLISH_TIMEOUT_MAX         (60 * 60)
 #define BLUETOOTH_BATTCHECK_TIMEOUT_MIN       60            // seconds
 #define BLUETOOTH_BATTCHECK_TIMEOUT_MAX       (24 * 60 * 60)
 

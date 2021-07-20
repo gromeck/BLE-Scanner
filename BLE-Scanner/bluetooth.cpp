@@ -88,9 +88,6 @@ void BluetoothSetup(void)
   FIX_RANGE(_config.bluetooth.pause_time, BLUETOOTH_PAUSE_TIME_MIN, BLUETOOTH_PAUSE_TIME_MAX);
   FIX_RANGE(_config.bluetooth.activescan_timeout, BLUETOOTH_ACTIVESCAN_TIMEOUT_MIN, BLUETOOTH_ACTIVESCAN_TIMEOUT_MAX);
   FIX_RANGE(_config.bluetooth.absence_cycles, BLUETOOTH_ABSENCE_CYCLES_MIN, BLUETOOTH_ABSENCE_CYCLES_MAX);
-  _config.bluetooth.publish_absence = _config.bluetooth.publish_absence ? true : false;
-  FIX_RANGE(_config.bluetooth.publish_timeout, BLUETOOTH_PUBLISH_TIMEOUT_MIN, BLUETOOTH_PUBLISH_TIMEOUT_MAX);
-  FIX_RANGE(_config.bluetooth.battcheck_timeout, BLUETOOTH_BATTCHECK_TIMEOUT_MIN, BLUETOOTH_BATTCHECK_TIMEOUT_MAX);
 
   /*
      set the timeout values in the status table
