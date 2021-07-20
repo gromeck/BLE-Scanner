@@ -51,6 +51,11 @@ void NtpUpdate(void);
 time_t NtpGetTime(void);
 
 /*
+   get the uptime
+*/
+time_t NtpUptime(void);
+
+/*
    get the frist received timestamp
 */
 time_t NtpUpSince(void);

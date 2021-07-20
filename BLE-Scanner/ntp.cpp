@@ -212,6 +212,14 @@ void NtpUpdate(void)
 }
 
 /*
+   get the uptime
+*/
+time_t NtpUptime(void)
+{
+  return now() - _up_since;
+}
+
+/*
    get the frist received timestamp
 */
 time_t NtpUpSince(void)
