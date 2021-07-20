@@ -282,7 +282,7 @@ static void ScanDevPublishMQTT(SCANDEV_T *device, bool all)
       json = "\"Scanner\":\"" + String(_config.device.name) + "\"," + json;
       json = "\"last_seen\":" + String(device->last_seen) + "," + json;
     }
-    if ((all || device->publish_presence || json.length() > 0) && (device->present || _config.bluetooth.publish_absence)) {
+    if ((all || device->publish_presence || json.length() > 0) && (device->present || _config.mqtt.publish_absence)) {
       /*
          whenever we publish something, we will also publish the state
       */
@@ -380,7 +380,7 @@ void ScanDevUpdate(void)
         device->present = false;
         device->publish = true;
       }
-      if (device->present && now() - device->last_published > _config.bluetooth.publish_timeout) {
+      if (device->present && now() - device->last_published > _config.mqtt.publish_timeout) {
         /*
            it's time to publish this device
         */
