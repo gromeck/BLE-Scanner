@@ -80,6 +80,11 @@ String WifiGetSSID(void);
 /*
    return the SSID
 */
+int WifiGetChannel(void);
+
+/*
+   return the SSID
+*/
 int WifiGetRSSI(void);
 
 /*

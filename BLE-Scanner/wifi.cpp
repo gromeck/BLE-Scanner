@@ -140,6 +140,14 @@ String WifiGetSSID(void)
 /*
    return the SSID
 */
+int WifiGetChannel(void)
+{
+  return WiFi.channel();
+}
+
+/*
+   return the SSID
+*/
 int WifiGetRSSI(void)
 {
   return WiFi.RSSI();
