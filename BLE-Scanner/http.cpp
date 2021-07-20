@@ -169,12 +169,12 @@ void HttpSetup(void)
       CHECK_AND_SET_STRING(mqtt, password);
       CHECK_AND_SET_STRING(mqtt, clientID);
       CHECK_AND_SET_STRING(mqtt, topicPrefix);
+      CHECK_AND_SET_NUMBER(mqtt, publish_timeout, MQTT_PUBLISH_TIMEOUT_MIN, MQTT_PUBLISH_TIMEOUT_MAX);
+      CHECK_AND_SET_BOOL(mqtt, publish_absence);
       CHECK_AND_SET_NUMBER(bluetooth, scan_time, BLUETOOTH_SCAN_TIME_MIN, BLUETOOTH_SCAN_TIME_MAX);
       CHECK_AND_SET_NUMBER(bluetooth, pause_time, BLUETOOTH_PAUSE_TIME_MIN, BLUETOOTH_PAUSE_TIME_MAX);
       CHECK_AND_SET_NUMBER(bluetooth, absence_cycles, BLUETOOTH_ABSENCE_CYCLES_MIN, BLUETOOTH_ABSENCE_CYCLES_MAX);
-      CHECK_AND_SET_BOOL(bluetooth, publish_absence);
       CHECK_AND_SET_NUMBER(bluetooth, activescan_timeout, BLUETOOTH_ACTIVESCAN_TIMEOUT_MIN, BLUETOOTH_ACTIVESCAN_TIMEOUT_MAX);
-      CHECK_AND_SET_NUMBER(bluetooth, publish_timeout, BLUETOOTH_PUBLISH_TIMEOUT_MIN, BLUETOOTH_PUBLISH_TIMEOUT_MAX);
       CHECK_AND_SET_NUMBER(bluetooth, battcheck_timeout, BLUETOOTH_BATTCHECK_TIMEOUT_MIN, BLUETOOTH_BATTCHECK_TIMEOUT_MAX);
 
       /*
@@ -351,6 +351,24 @@ void HttpSetup(void)
                     "<input name='mqtt_topicPrefix' type='text' placeholder='MQTT Topic Prefix' value='" + String(_config.mqtt.topicPrefix) + "'>"
                     "</p>"
 
+                    "<p>"
+                    "<b>Publishing of Presence &amp; Absence</b>"
+                    "<br>"
+                    "<input name='mqtt_publish_absence' type='radio' value='0'" + (_config.mqtt.publish_absence ? "" : " checked") + "> Publish only presence" +
+                    "<br>"
+                    "<input name='mqtt_publish_absence' type='radio' value='1'" + (_config.mqtt.publish_absence ? " checked" : "") + "> Publish presence &amp; absence" +
+                    "<br>"
+                    "<b>Note:</b> Selecting <i>Publish only presence</i> might help if multiple scanners are publishing to the same object."
+                    "</p>"
+
+                    "<p>"
+                    "<b>Publishing Timeout (" + MQTT_PUBLISH_TIMEOUT_MIN + "s - " + MQTT_PUBLISH_TIMEOUT_MAX + "s)</b>"
+                    "<br>"
+                    "<input name='mqtt_publish_timeout' type='text' placeholder='MQTT Publishing Timeout' value='" + String(_config.mqtt.publish_timeout) + "'>"
+                    "<br>"
+                    "<b>Note:</b> This timeout is for device updates on a regular base. If a device presence changes, it will be reported instantly."
+                    "</p>"
+
                     "<button name='save' type='submit' class='button greenbg'>Speichern</button>"
                     "</form>"
                     "</fieldset>"
@@ -397,24 +415,6 @@ void HttpSetup(void)
                     "<input name='bluetooth_activescan_timeout' type='text' placeholder='Active Scan Timeout' value='" + String(_config.bluetooth.activescan_timeout) + "'>"
                     "<br>"
                     "<b>Note:</b> If this timeout is reached, the next scan will be an active scan. Otherwise only passive scans will be performed."
-                    "</p>"
-
-                    "<p>"
-                    "<b>MQTT Publishing of Presence &amp; Absence</b>"
-                    "<br>"
-                    "<input name='bluetooth_publish_absence' type='radio' value='0'" + (_config.bluetooth.publish_absence ? "" : " checked") + "> Publish only presence" +
-                    "<br>"
-                    "<input name='bluetooth_publish_absence' type='radio' value='1'" + (_config.bluetooth.publish_absence ? " checked" : "") + "> Publish presence &amp; absence" +
-                    "<br>"
-                    "<b>Note:</b> Selecting <i>Publish only presence</i> might help if multiple scanners are publishing to the same object."
-                    "</p>"
-
-                    "<p>"
-                    "<b>MQTT Publishing Timeout (" + BLUETOOTH_PUBLISH_TIMEOUT_MIN + "s - " + BLUETOOTH_PUBLISH_TIMEOUT_MAX + "s)</b>"
-                    "<br>"
-                    "<input name='bluetooth_publish_timeout' type='text' placeholder='MQTT Publishing Timeout' value='" + String(_config.bluetooth.publish_timeout) + "'>"
-                    "<br>"
-                    "<b>Note:</b> This timeout is for device updates on a regular base. If a device presence changes, it will be reported instantly."
                     "</p>"
 
                     "<p>"
@@ -492,6 +492,10 @@ void HttpSetup(void)
                     "<td>" + WifiGetSSID() + "</td>"
                     "</tr>"
                     "<tr>"
+                    "<td>Channel</td>"
+                    "<td>" + WifiGetChannel() + "</td>"
+                    "</tr>"
+                    "<tr>"
                     "<td>RSSI</td>"
                     "<td>" + String(WIFI_RSSI_TO_QUALITY(WifiGetRSSI())) + "% (" + WifiGetRSSI() + "dBm)</td>"
                     "</tr>"
@@ -539,6 +543,15 @@ void HttpSetup(void)
                     "<td>Topic Prefix</td>"
                     "<td>" + _config.mqtt.topicPrefix + "</td>"
                     "</tr>"
+                    "<tr>"
+                    "<td>MQTT Publishing of Presence &amp; Absence</td>"
+                    "<td>" + (_config.mqtt.publish_absence ? "presence &amp; absence" : "only presence") + "</td>"
+                    "</tr>"
+                    "<tr>"
+                    "<td>MQTT Publish Timeout</td>"
+                    "<td>" + _config.mqtt.publish_timeout + "</td>"
+                    "</tr>"
+                    "<tr>"
 
                     "<tr><th colspan=2>Bluetooth</th></tr>"
                     "<tr>"
@@ -554,19 +567,9 @@ void HttpSetup(void)
                     "<td>" + _config.bluetooth.activescan_timeout + "</td>"
                     "</tr>"
                     "<tr>"
-                    "<tr>"
                     "<td>Absence Timeout Cycle</td>"
                     "<td>" + _config.bluetooth.absence_cycles + "</td>"
                     "</tr>"
-                    "<tr>"
-                    "<td>MQTT Publishing of Presence &amp; Absence</td>"
-                    "<td>" + (_config.bluetooth.publish_absence ? "presence &amp; absence" : "only presence") + "</td>"
-                    "</tr>"
-                    "<tr>"
-                    "<td>MQTT Publish Timeout</td>"
-                    "<td>" + _config.bluetooth.publish_timeout + "</td>"
-                    "</tr>"
-                    "<tr>"
                     "<td>Battery Check Timeout</td>"
                     "<td>" + _config.bluetooth.battcheck_timeout + "</td>"
                     "</tr>"
