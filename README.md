@@ -44,6 +44,7 @@ To intall the ESP32 device support in the Arduino IDE, do as follows:
 * Under `Tools` - `Manage Libraries` install the following libraries, if not yet installed:
   * `NimBLE-Arduino` - see [https://github.com/h2zero/NimBLE-Arduino](https://github.com/h2zero/NimBLE-Arduino) for documentation
   * `PubSubClient` - see [https://pubsubclient.knolleary.net/](https://pubsubclient.knolleary.net/) for documentation
+  * `Time` see [https://playground.arduino.cc/Code/Time/|(https://playground.arduino.cc/Code/Time/) for documentation
 
 ## Update Procedure (OTA)
 
