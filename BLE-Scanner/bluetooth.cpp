@@ -156,7 +156,7 @@ bool BluetoothScanStart(void)
      start the scan
   */
 #if DBG_BT
-  DbgMsg("BLE: start %s scan ...", (active) ? "active" : "passive");
+  DbgMsg("BLE: start %s scan for %d seconds ...", (active) ? "active" : "passive", _config.bluetooth.scan_time);
 #endif
   _scan->start(_config.bluetooth.scan_time, false);
   _last_scan = now();
