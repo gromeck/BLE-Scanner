@@ -121,7 +121,7 @@ bool ScanDevAdd(BLEAddress addr, const char *name, const uint16_t manufacturer_i
        if this device slot was used from another device, we have to clean the record
     */
     if (device->addr != addr) {
-      memset(device, 0, sizeof(SCANDEV_T));
+      memset((void *) device, 0, sizeof(SCANDEV_T));
     }
   }
   else {
@@ -129,7 +129,7 @@ bool ScanDevAdd(BLEAddress addr, const char *name, const uint16_t manufacturer_i
        create a new device
     */
     if ((device = (SCANDEV_T *) malloc(sizeof(SCANDEV_T)))) {
-      memset(device, 0, sizeof(SCANDEV_T));
+      memset((void *) device, 0, sizeof(SCANDEV_T));
     }
     LogMsg("DEV: number of scanned devices in list: %d", _scandev_count);
   }
