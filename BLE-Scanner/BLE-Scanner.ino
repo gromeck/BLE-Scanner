@@ -33,10 +33,23 @@
 #include "util.h"
 #include "bluetooth.h"
 #include "scandev.h"
-#include <esp_task_wdt.h>
+#include "watchdog.h"
+#if defined(ESP32)
+#include "soc/soc.h"
+#include "soc/rtc_cntl_reg.h"
+#endif
 
 void setup()
 {
+#if defined(ESP32)
+  /*
+     disable the brownout detector (BOD)
+  */
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+#elif defined(ESP8266)
+  // there is no BOD in the ESP8266
+#endif
+
   /*
      setup serial communication
   */
@@ -45,15 +58,9 @@ void setup()
   LogMsg("*** " __TITLE__ " - Version " GIT_VERSION " ***");
 
   /*
-     initialize the watchdog
-
-     the default timeout (5s) might be top short in debug mode
-  */
-  esp_task_wdt_init(30, true);
-
-  /*
      initialize the basic sub-systems
   */
+  WatchdogSetup(0);
   LedSetup(LED_MODE_ON);
   StateSetup(STATE_SCANNING);
 
@@ -79,6 +86,7 @@ void setup()
     BLEManufacturerSetup();
     MqttSetup();
     BluetoothSetup();
+    WatchdogSetup(_config.bluetooth.scan_time);
   }
 }
 
@@ -87,6 +95,7 @@ void loop()
   /*
      do the cyclic updates of the sub systems
   */
+  WatchdogUpdate();
   ConfigUpdate();
   LedUpdate();
   WifiUpdate();

@@ -31,6 +31,7 @@
 #include "mqtt.h"
 #include "ntp.h"
 #include "bluetooth.h"
+#include "watchdog.h"
 #include "scandev.h"
 
 /*
@@ -189,6 +190,7 @@ void HttpSetup(void)
         NtpSetup();
         MqttSetup();
         BluetoothSetup();
+        WatchdogSetup(_config.bluetooth.scan_time);
       }
     }
 
