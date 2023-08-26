@@ -4,8 +4,6 @@
 #
 #	(c) 2020 Christian.Lorenz@gromeck.de
 #
-#	module to handle the MQTT stuff
-#
 #
 #	This file is part of BLE-Scanner.
 #
@@ -26,34 +24,20 @@
 #
 #	script to update the manufacturer list from bluetooth.com
 #
-#	the input format from macaddress.io is:
-#	oui,isPrivate,companyName,companyAddress,countryCode,assignmentBlockSize,dateCreated,dateUpdated
+#	if the script doesn't work anymore, visit 
+#		https://www.bluetooth.com/specifications/assigned-numbers/company-identifiers/
+#	and follow the instruction to find the right URL.
 #
 #	the output format is:
-#	{ { 0xXX, 0xXX, 0xXX }, "vendor name" }
+#	{ 0xXXXX, "vendor name" },
+#	:
 #
-#	NOTE: only the first 3 octets from the MAC address will be used -- makes matching easier.
+#	NOTE: only the first 2 octets from the MAC address will be used -- makes matching easier.
 #	NOTE: the vendor name is limited to 32 characters in the output
 #
 
-URL="https://www.bluetooth.com/specifications/assigned-numbers/company-identifiers/"
-FILE="CompanyIdentfiers - CSV.csv"
+URL="https://bitbucket.org/bluetooth-SIG/public/raw/HEAD/assigned_numbers/company_identifiers/company_identifiers.yaml"
 TARGET="../../BLE-Scanner/ble-manufacturer-list.h"
-
-cat <<EOM
-As the offical file with all assigned manufacurer IDs is prevented
-to be automatically downloaded, this has to be done manually. So,
-please download the CSV file from
-
-  $URL
-
-and store the CVS as
-
-  $FILE
-
-Hit return when done, otherwise cancel with <Ctrl-C>
-EOM
-read
 
 #
 #	write a header to the file
@@ -69,19 +53,22 @@ EOM
 #
 #	get the manufacturer db into the target file
 #
-ITEMS=$( cat "$FILE" | \
-	awk 'BEGIN {
-		  FS = ",";
-		}
-		/^"[0-9]+","0[xX][0-9a-fA-F]+",".*"/ {
-			# Hexadecimal ($2) and Company ($3)
-			# print $2,$3;
-			hex = $2;
-			gsub(/"/, "", hex);
-			vendor = substr($3,1,24);
-			gsub(/"/, "", vendor);
+echo "Getting manufacture IDs from $URL ..."
+ITEMS=$( wget -q -O- "$URL" | \
+	sed -e "s/company_identifiers://g" | \
+	sed -e "s/^[ \t-]*//g" | \
+	sed -e "s/'//g" | \
+	awk -v RS="value:|name:" \
+		'{
+			gsub("value:|name:","",$0);
+			hex = $1;
+			vendor = $2;
+			gsub(/0x/,"0000",hex);
+			gsub(/"/,"",vendor);
+			hex = "0x"tolower(substr(hex,length(hex) - 3));
 			printf "\t{ %s, \"%s\" },\n", hex, vendor;
-		}' | \
+		}' \
+		RS='' | \
 	sort | tee --append $TARGET | wc -l )
 
-echo "Written $ITEMS entries to $TARGET -- recompile the scetch."
+echo "Written $ITEMS entries to $TARGET -- recompile the sketch."
