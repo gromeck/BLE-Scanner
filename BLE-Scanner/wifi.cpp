@@ -24,6 +24,7 @@
 */
 
 #include "config.h"
+#include "watchdog.h"
 #include "wifi.h"
 #include "state.h"
 #include "util.h"
@@ -86,9 +87,7 @@ bool WifiSetup(void)
 }
 
 /*
-   do Wifi updates
-
-
+    do Wifi updates
 */
 bool WifiUpdate(void)
 {
@@ -109,15 +108,16 @@ bool WifiUpdate(void)
       /*
          wait to connect
       */
-      int retries = WIFI_CONNECT_RETRIES;
+      int timeout = WIFI_CONNECT_TIMEOUT;
 
 #if DBG_WIFI
-      DbgMsg("WIFI: status is not connected ... waiting for connection");
+      DbgMsg("WIFI: status is not connected ... waiting for %d seconds for connection",WIFI_CONNECT_TIMEOUT);
 #endif
       while (WiFi.status() != WL_CONNECTED) {
         delay(1000);
-        if (--retries <= 0) {
-          LogMsg("WIFI: giving up after %d retries", WIFI_CONNECT_RETRIES);
+        WatchdogUpdate();
+        if (--timeout <= 0) {
+          LogMsg("WIFI: giving up after %d seconds", WIFI_CONNECT_TIMEOUT);
           return false;
         }
       }

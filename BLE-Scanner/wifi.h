@@ -46,11 +46,11 @@ extern WiFiClient _wifiClient;
 #define WIFI_AP_SSID_USE_LAST_MAC_DIGITS   3
 
 /*
-   number of retries to connect to the configured Wifi
+   timeout to connect to the configured Wifi
 
-   when retrie count is reached, we will give up -- the device will enter the configuration mode
+   when timeout is reached, we will give up -- the device will enter the configuration mode
 */
-#define WIFI_CONNECT_RETRIES          20
+#define WIFI_CONNECT_TIMEOUT          30
 
 /*
    port for the DNS
