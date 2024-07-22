@@ -33,11 +33,27 @@ static unsigned long _last_update = false;
 
 void WatchdogSetup(int timeout)
 {
+  int rc;
+
   timeout += WATCHDOG_TIMEOUT;
   
   LogMsg("WATCHDOG: setting up watchdog with a timeout of %d seconds", timeout);
 #if defined(ESP32)
-  esp_task_wdt_init(timeout, true);
+  esp_task_wdt_config_t config;
+
+  config.timeout_ms = timeout * 1000;
+  config.idle_core_mask = 1 << 0;
+  config.trigger_panic = true;
+
+  if ((rc = esp_task_wdt_init(&config)) == ESP_ERR_INVALID_STATE) {
+    LogMsg("WATCHDOG: already configured -- trying reconfiguration");
+    rc = esp_task_wdt_reconfigure(&config);
+  }
+  if (rc != ESP_OK) {
+    LogMsg("WATCHDOG: configuration of watchdog failed -- restarting");
+    ESP.restart();
+  }
+
   // add the current thread
   esp_task_wdt_add(NULL);
 #elif defined(ESP8266)
@@ -86,7 +102,7 @@ void WatchdogUnitTest(void)
 {
   unsigned long _feed_time;
 
-  WatchdogSetup();
+  WatchdogSetup(WATCHDOG_TIMEOUT);
 
   DbgMsg("WATCHDOG: feeding the watchdog for %d cycles ...", TEST_CYCLES);
 
