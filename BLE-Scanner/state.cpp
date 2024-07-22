@@ -74,6 +74,9 @@ static STATES _states[] = {
 */
 void StateSetup(int state)
 {
+#if DBG_STATE
+    DbgMsg("STATE: setting up state to %d",state);
+#endif
   StateChange(state);
 }
 
@@ -84,6 +87,10 @@ void StateSetup(int state)
 */
 int StateUpdate(void)
 {
+#if DBG_STATE
+    DbgMsg("STATE: updating state");
+#endif
+
   unsigned long now = millis();
   int new_state = STATE_NONE;
 
@@ -145,8 +152,9 @@ int StateUpdate(void)
 void StateChange(int state)
 {
 #if DBG_STATE
-  DbgMsg("STATE: state change requested from %d to %d", _state, state);
+  DbgMsg("STATE: change requested from %d to %d", _state, state);
 #endif
+
   _state_new = (_state != state) ? state : STATE_NONE;
 }
 
@@ -177,5 +185,9 @@ void StateModifyTimeout(int state, unsigned int timeout)
 */
 bool StateCheck(int state)
 {
+#if DBG_STATE
+  DbgMsg("STATE: checking state");
+#endif
+
   return state == ((_state_new != STATE_NONE) ? _state_new : _state);
 }/**/

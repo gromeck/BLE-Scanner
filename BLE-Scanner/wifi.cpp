@@ -37,6 +37,10 @@ static char _AP_SSID[64] = "";
 */
 bool WifiSetup(void)
 {
+#if DBG_WIFI
+  DbgMsg("WIFI: setting up wifi");
+#endif
+
   LogMsg("WIFI: my MAC address is %s", WifiGetMacAddr().c_str());
 
   if (StateCheck(STATE_CONFIGURING)) {
@@ -134,6 +138,10 @@ bool WifiUpdate(void)
 */
 String WifiGetSSID(void)
 {
+#if DBG_WIFI
+  DbgMsg("WIFI: entering WifiGetSSID()");
+#endif
+
   return StateCheck(STATE_CONFIGURING) ? _AP_SSID : WiFi.SSID();
 }
 
@@ -142,6 +150,10 @@ String WifiGetSSID(void)
 */
 int WifiGetChannel(void)
 {
+#if DBG_WIFI
+  DbgMsg("WIFI: entering WifiGetChannel()");
+#endif
+
   return WiFi.channel();
 }
 
@@ -150,6 +162,10 @@ int WifiGetChannel(void)
 */
 int WifiGetRSSI(void)
 {
+#if DBG_WIFI
+  DbgMsg("WIFI: entering WifiGetRSSI()");
+#endif
+
   return WiFi.RSSI();
 }
 
@@ -159,6 +175,10 @@ int WifiGetRSSI(void)
 */
 String WifiGetIpAddr(void)
 {
+#if DBG_WIFI
+  DbgMsg("WIFI: entering WifiGetIpAddr()");
+#endif
+
   return IPAddressToString(StateCheck(STATE_CONFIGURING) ? WiFi.softAPIP() : WiFi.localIP());
 }
 
@@ -167,6 +187,10 @@ String WifiGetIpAddr(void)
 */
 String WifiGetMacAddr(void)
 {
+#if DBG_WIFI
+  DbgMsg("WIFI: entering WifiGetMacAddr()");
+#endif
+
   uint8_t mac[MAC_ADDR_LEN];
 
   return String(AddressToString((byte *) WiFi.macAddress(mac), sizeof(mac), false, ':'));
@@ -175,5 +199,9 @@ String WifiGetMacAddr(void)
 
 WiFiClient *WifiGetClient(void)
 {
+#if DBG_WIFI
+  DbgMsg("WIFI: entering WifiGetClient()");
+#endif
+
   return &_wifiClient;
 }/**/
