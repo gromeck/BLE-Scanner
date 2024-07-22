@@ -57,6 +57,12 @@ void setup()
   Serial.println();
   LogMsg("*** " __TITLE__ " - Version " GIT_VERSION " ***");
 
+#if UNIT_TEST
+  WatchdogUnitTest();
+  LogMsg("End of UnitTest -- restarting");
+  ESP.restart();
+#endif
+
   /*
      initialize the basic sub-systems
   */
