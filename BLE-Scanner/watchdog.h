@@ -31,6 +31,7 @@
 */
 #define WATCHDOG_TIMEOUT   10 // [s]
 
+#define UNIT_TEST 0
 
 void WatchdogSetup(int timeout);
 void WatchdogUpdate(void);
