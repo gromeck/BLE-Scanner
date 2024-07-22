@@ -37,7 +37,7 @@
 /*
    control the debugging messages
 */
-#define DBG               1
+#define DBG               0
 #define DBG_BT            (DBG && 1)
 #define DBG_CFG           (DBG && 0)
 #define DBG_HTTP          (DBG && 0)
@@ -47,6 +47,8 @@
 #define DBG_MQTT          (DBG && 1)
 #define DBG_SCANDEV       (DBG && 0)
 #define DBG_STATE         (DBG && 0)
+#define DBG_UTIL          (DBG && 0)
+#define DBG_WIFI          (DBG && 0)
 
 
 /*
