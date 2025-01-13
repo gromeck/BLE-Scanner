@@ -50,7 +50,7 @@ static void HttpSendHelper(const String& content)
 /*
   time of the last HTTP request
 */
-static unsigned long _last_request = 0;
+static unsigned long _last_http_request = 0;
 
 /*
    setup the webserver
@@ -91,7 +91,7 @@ void HttpSetup(void)
   ConfigGet(0, sizeof(CONFIG_T), &_config);
 
   _WebServer.onNotFound( []() {
-    _last_request = millis();
+    _last_http_request = millis();
     if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
       return _WebServer.requestAuthentication();
 
@@ -108,7 +108,7 @@ void HttpSetup(void)
   });
 
   _WebServer.on("/styles.css", []() {
-    _last_request = millis();
+    _last_http_request = millis();
     _WebServer.send(200, "text/css",
                     "html, body { background:#ffffff; }"
                     "body { margin:1rem; padding:0; font-familiy:'sans-serif'; color:#202020; text-align:center; font-size:1rem; }"
@@ -139,7 +139,7 @@ void HttpSetup(void)
   });
 
   _WebServer.on("/config", []() {
-    _last_request = millis();
+    _last_http_request = millis();
     if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
       return _WebServer.requestAuthentication();
 
@@ -207,7 +207,7 @@ void HttpSetup(void)
   });
 
   _WebServer.on("/config/device", []() {
-    _last_request = millis();
+    _last_http_request = millis();
     if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
       return _WebServer.requestAuthentication();
 
@@ -244,7 +244,7 @@ void HttpSetup(void)
     if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
       return _WebServer.requestAuthentication();
 
-    _last_request = millis();
+    _last_http_request = millis();
     _WebServer.send(200, "text/html",
                     _html_header +
                     "<fieldset>"
@@ -276,7 +276,7 @@ void HttpSetup(void)
     if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
       return _WebServer.requestAuthentication();
 
-    _last_request = millis();
+    _last_http_request = millis();
     _WebServer.send(200, "text/html",
                     _html_header +
                     "<fieldset>"
@@ -295,6 +295,12 @@ void HttpSetup(void)
                     "<b>Timezone (+/- offset in hours)</b>"
                     "<br>"
                     "<input name='ntp_timezone' type='text' placeholder='Timezone' value='" + String(_config.ntp.timezone) + "'>"
+                    "<br>"
+                    "<b>Note:</b> Configure the timezone without DST, this is done in addition."
+                      " This is only used for displaying timestamps here in the web frontend."
+                    "<br>"
+                    "<b>Note:</b> The timestamps published via MQTT use the time without any timezone or DST corrections"
+                      " as it is coming from the NTP server (which in fact should be UTC)."
                     "</p>"
 
                     "<button name='save' type='submit' class='button greenbg'>Speichern</button>"
@@ -308,7 +314,7 @@ void HttpSetup(void)
     if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
       return _WebServer.requestAuthentication();
 
-    _last_request = millis();
+    _last_http_request = millis();
     _WebServer.send(200, "text/html",
                     _html_header +
                     "<fieldset>"
@@ -364,7 +370,7 @@ void HttpSetup(void)
                     "</p>"
 
                     "<p>"
-                    "<b>Publishing Timeout (" + MQTT_PUBLISH_TIMEOUT_MIN + "s - " + MQTT_PUBLISH_TIMEOUT_MAX + "s)</b>"
+                    "<b>Publishing Timeout (" + MQTT_PUBLISH_TIMEOUT_MIN + " s - " + MQTT_PUBLISH_TIMEOUT_MAX + " s)</b>"
                     "<br>"
                     "<input name='mqtt_publish_timeout' type='text' placeholder='MQTT Publishing Timeout' value='" + String(_config.mqtt.publish_timeout) + "'>"
                     "<br>"
@@ -382,7 +388,7 @@ void HttpSetup(void)
     if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
       return _WebServer.requestAuthentication();
 
-    _last_request = millis();
+    _last_http_request = millis();
     _WebServer.send(200, "text/html",
                     _html_header +
                     "<fieldset>"
@@ -392,13 +398,13 @@ void HttpSetup(void)
                     "<form method='get' action='/config'>"
 
                     "<p>"
-                    "<b>LE Scan Time (" + BLUETOOTH_SCAN_TIME_MIN + "s - " + BLUETOOTH_SCAN_TIME_MAX + "s; 0=off)</b>"
+                    "<b>LE Scan Time (" + BLUETOOTH_SCAN_TIME_MIN + " s - " + BLUETOOTH_SCAN_TIME_MAX + " s; 0=off)</b>"
                     "<br>"
                     "<input name='bluetooth_scan_time' type='text' placeholder='Bluetooth BLE scan time' value='" + String(_config.bluetooth.scan_time) + "'>"
                     "</p>"
 
                     "<p>"
-                    "<b>Pause Time (" + BLUETOOTH_PAUSE_TIME_MIN + "s - " + BLUETOOTH_PAUSE_TIME_MAX + "s)</b>"
+                    "<b>Pause Time (" + BLUETOOTH_PAUSE_TIME_MIN + " s - " + BLUETOOTH_PAUSE_TIME_MAX + " s)</b>"
                     "<br>"
                     "<input name='bluetooth_pause_time' type='text' placeholder='Bluetooth pause time' value='" + String(_config.bluetooth.pause_time) + "'>"
                     "</p>"
@@ -412,7 +418,7 @@ void HttpSetup(void)
                     "</p>"
 
                     "<p>"
-                    "<b>Active Scan Timeout (" + BLUETOOTH_ACTIVESCAN_TIMEOUT_MIN + "s - " + BLUETOOTH_ACTIVESCAN_TIMEOUT_MAX + "s)</b>"
+                    "<b>Active Scan Timeout (" + BLUETOOTH_ACTIVESCAN_TIMEOUT_MIN + " s - " + BLUETOOTH_ACTIVESCAN_TIMEOUT_MAX + " s)</b>"
                     "<br>"
                     "<input name='bluetooth_activescan_timeout' type='text' placeholder='Active Scan Timeout' value='" + String(_config.bluetooth.activescan_timeout) + "'>"
                     "<br>"
@@ -420,7 +426,7 @@ void HttpSetup(void)
                     "</p>"
 
                     "<p>"
-                    "<b>Battery Check Timeout (" + BLUETOOTH_BATTCHECK_TIMEOUT_MIN + "s - " + BLUETOOTH_BATTCHECK_TIMEOUT_MAX + "s)</b>"
+                    "<b>Battery Check Timeout (" + BLUETOOTH_BATTCHECK_TIMEOUT_MIN + " s - " + BLUETOOTH_BATTCHECK_TIMEOUT_MAX + " s)</b>"
                     "<br>"
                     "<input name='bluetooth_battcheck_timeout' type='text' placeholder='Battery Check Timeout' value='" + String(_config.bluetooth.battcheck_timeout) + "'>"
                     "</p>"
@@ -436,7 +442,7 @@ void HttpSetup(void)
     if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
       return _WebServer.requestAuthentication();
 
-    _last_request = millis();
+    _last_http_request = millis();
 
     /*
        reset the config
@@ -463,7 +469,10 @@ void HttpSetup(void)
     if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
       return _WebServer.requestAuthentication();
 
-    _last_request = millis();
+    _last_http_request = millis();
+    int ntp_requests,ntp_replies_total,ntp_replies_good;
+
+    NtpStats(&ntp_requests,&ntp_replies_total,&ntp_replies_good);
 
     _WebServer.send(200, "text/html",
                     _html_header +
@@ -483,10 +492,6 @@ void HttpSetup(void)
                     "<td>Device Name</td>"
                     "<td>" + String(_config.device.name) + "</td>"
                     "</tr>"
-                    "<tr>"
-                    "<td>Up since</td>"
-                    "<td>" + String(TimeToString(NtpUpSince())) + "</td>"
-                    "</tr>"
 
                     "<tr><th colspan=2>WiFi</th></tr>"
                     "<tr>"
@@ -499,7 +504,7 @@ void HttpSetup(void)
                     "</tr>"
                     "<tr>"
                     "<td>RSSI</td>"
-                    "<td>" + String(WIFI_RSSI_TO_QUALITY(WifiGetRSSI())) + "% (" + WifiGetRSSI() + "dBm)</td>"
+                    "<td>" + String(WIFI_RSSI_TO_QUALITY(WifiGetRSSI())) + " % (" + WifiGetRSSI() + " dBm)</td>"
                     "</tr>"
                     "<tr>"
                     "<td>MAC</td>"
@@ -516,8 +521,40 @@ void HttpSetup(void)
                     "<td>" + _config.ntp.server + "</td>"
                     "</tr>"
                     "<tr>"
+                    "<td>Sync Interval</td>"
+                    "<td>" + String(NTP_SYNC_INTERVAL) + " s</td>"
+                    "</tr>"
+                    "<tr>"
                     "<td>Timezone</td>"
-                    "<td>" + _config.ntp.timezone + "</td>"
+                    "<td>" + ((_config.ntp.timezone > 0) ? "+" : "") + _config.ntp.timezone + " h</td>"
+                    "</tr>"
+#if DBG_NTP
+                    "<tr>"
+                    "<td>Seconds since 01.01.1970</td>"
+                    "<td>" + String(now()) + "</td>"
+                    "</tr>"
+#endif
+                    "<tr>"
+                    "<td>Current Time</td>"
+                    "<td>" + String(TimeToString(now())) + "</td>"
+                    "</tr>"
+                    "<tr>"
+                    "<td>First Sync (uptime)</td>"
+                     "<td>" + String(TimeToString(NtpFirstSync())) + "</td>"
+                    "</tr>"
+                    "<tr>"
+                    "<td>Last Update</td>"
+                    "<td>" + String(TimeToString(NtpLastSync())) + "</td>"
+                    "</tr>"
+#if DBG_NTP
+                    "<tr>"
+                    "<td>Last correction</td>"
+                    "<td>" + String(NtpLastCorrection()) + " s</td>"
+                    "</tr>"
+#endif
+                    "<tr>"
+                    "<td>Requests/Replies/Good Replies</td>"
+                    "<td>" + String(ntp_requests) + "/" + String(ntp_replies_total) + "/" + String(ntp_replies_good) + "</td>"
                     "</tr>"
 
                     "<tr><th colspan=2>MQTT</th></tr>"
@@ -551,29 +588,29 @@ void HttpSetup(void)
                     "</tr>"
                     "<tr>"
                     "<td>MQTT Publish Timeout</td>"
-                    "<td>" + _config.mqtt.publish_timeout + "</td>"
+                    "<td>" + _config.mqtt.publish_timeout + " s</td>"
                     "</tr>"
                     "<tr>"
 
                     "<tr><th colspan=2>Bluetooth</th></tr>"
                     "<tr>"
                     "<td>LE Scan Time</td>"
-                    "<td>" + _config.bluetooth.scan_time + "</td>"
+                    "<td>" + _config.bluetooth.scan_time + " s</td>"
                     "</tr>"
                     "<tr>"
                     "<td>Scan Pause Time</td>"
-                    "<td>" + _config.bluetooth.pause_time + "</td>"
+                    "<td>" + _config.bluetooth.pause_time + " s</td>"
                     "</tr>"
                     "<tr>"
                     "<td>Active Scan Timeout</td>"
-                    "<td>" + _config.bluetooth.activescan_timeout + "</td>"
+                    "<td>" + _config.bluetooth.activescan_timeout + " s</td>"
                     "</tr>"
                     "<tr>"
-                    "<td>Absence Timeout Cycle</td>"
+                    "<td>Absence Timeout Cycles</td>"
                     "<td>" + _config.bluetooth.absence_cycles + "</td>"
                     "</tr>"
                     "<td>Battery Check Timeout</td>"
-                    "<td>" + _config.bluetooth.battcheck_timeout + "</td>"
+                    "<td>" + _config.bluetooth.battcheck_timeout + " s</td>"
                     "</tr>"
 
                     "</table>"
@@ -586,7 +623,7 @@ void HttpSetup(void)
     if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
       return _WebServer.requestAuthentication();
 
-    _last_request = millis();
+    _last_http_request = millis();
 
     _WebServer.send(200, "text/html",
                     _html_header +
@@ -609,7 +646,7 @@ void HttpSetup(void)
     if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
       return _WebServer.requestAuthentication();
 
-    _last_request = millis();
+    _last_http_request = millis();
     DbgMsg("HTTP: /upgrade GET");
 
     _WebServer.send(200, "text/html",
@@ -642,7 +679,7 @@ void HttpSetup(void)
     if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
       return _WebServer.requestAuthentication();
 
-    _last_request = millis();
+    _last_http_request = millis();
 
     DbgMsg("HTTP: /upgrade POST upload");
     _WebServer.send(200, "text/html",
@@ -663,7 +700,7 @@ void HttpSetup(void)
     if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
       return _WebServer.requestAuthentication();
 
-    _last_request = millis();
+    _last_http_request = millis();
 
     /*
        this is the upload handler
@@ -713,7 +750,14 @@ void HttpSetup(void)
     if (!StateCheck(STATE_CONFIGURING) && _config.device.password[0] && !_WebServer.authenticate(HTTP_WEB_USER, _config.device.password))
       return _WebServer.requestAuthentication();
 
-    _last_request = millis();
+#if DBG
+    if (_WebServer.hasArg("toggle") && _WebServer.hasArg("addr")) {
+      NimBLEAddress addr = NimBLEAddress(_WebServer.arg("addr").c_str(),BLE_ADDR_PUBLIC);
+      ScanDevToggle(addr);
+    }
+#endif
+
+    _last_http_request = millis();
 
     /*
        send the bluetooth list
@@ -721,7 +765,7 @@ void HttpSetup(void)
        NOTE: this list might by long, so we habe to send it device by device in HTML
        in HTML chunks
     */
-    _last_request = millis();
+    _last_http_request = millis();
 
     _WebServer.setContentLength(CONTENT_LENGTH_UNKNOWN);
     _WebServer.send(200, "text/html");
@@ -738,7 +782,7 @@ void HttpSetup(void)
   });
 
   _WebServer.begin();
-  _last_request = millis();
+  _last_http_request = millis();
   LogMsg("HTTP: server started");
 }
 
@@ -755,5 +799,5 @@ void HttpUpdate(void)
 */
 int HttpLastRequest(void)
 {
-  return (millis() - _last_request) / 1000;
+  return (millis() - _last_http_request) / 1000;
 }/**/
