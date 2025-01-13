@@ -35,9 +35,9 @@ static NimBLEScan *_scan = NULL;
 static time_t _last_scan = 0;
 static time_t _last_activescan = 0;
 
-class BLEScannerAdvertisedDeviceCallbacks : public NimBLEAdvertisedDeviceCallbacks
+class BLEScannerScanCallbacks : public NimBLEScanCallbacks
 {
-    void onResult(BLEAdvertisedDevice* advertisedDevice)
+    void onResult(const BLEAdvertisedDevice* advertisedDevice)
     {
 #if DBG_BT
       DbgMsg("BLE: found advertised device: %s  address type: 0x%02x", advertisedDevice->getAddress().toString().c_str(), advertisedDevice->getAddressType());
@@ -106,7 +106,7 @@ void BluetoothSetup(void)
   /*
      init the device
   */
-  if (!NimBLEDevice::getInitialized())
+  if (!NimBLEDevice::isInitialized())
     NimBLEDevice::init(__TITLE__);
 
   /*
@@ -118,7 +118,7 @@ void BluetoothSetup(void)
   if (!_scan && !(_scan = NimBLEDevice::getScan())) {
     LogMsg("BLE: NimBLEDevice::getScan() failed");
   }
-  _scan->setAdvertisedDeviceCallbacks(new BLEScannerAdvertisedDeviceCallbacks(), false);
+  _scan->setScanCallbacks(new BLEScannerScanCallbacks(), false);
 }
 
 /*
@@ -158,7 +158,7 @@ bool BluetoothScanStart(void)
 #if DBG_BT
   DbgMsg("BLE: start %s scan for %d seconds ...", (active) ? "active" : "passive", _config.bluetooth.scan_time);
 #endif
-  _scan->start(_config.bluetooth.scan_time, false);
+  _scan->start(_config.bluetooth.scan_time * 1000, false);
   _last_scan = now();
 
   return true;
