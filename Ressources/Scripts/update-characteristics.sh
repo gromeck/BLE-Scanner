@@ -39,12 +39,13 @@
 CHARACTERISTICS="
 appearance,https://www.bluetooth.com/wp-content/uploads/Sitecore-Media-Library/Gatt/Xml/Characteristics/org.bluetooth.characteristic.gap.appearance.xml
 "
+BLE_SCANNER_SKETCH="../../BLE-Scanner"
 
 for CHARACTERISTIC in $CHARACTERISTICS; do
 	URL=$( echo $CHARACTERISTIC | cut -f2 -d, )
 	CHARACTERISTIC=$( echo $CHARACTERISTIC | cut -f1 -d, )
 	XSLT="${CHARACTERISTIC}2list.xslt"
-	LIST="../BLE-Scanner/characteristic-$CHARACTERISTIC.h"
+	LIST="$BLE_SCANNER_SKETCH/characteristic-$CHARACTERISTIC.h"
 
 	echo "Transforming $URL to $LIST with $XSLT ..."
 
