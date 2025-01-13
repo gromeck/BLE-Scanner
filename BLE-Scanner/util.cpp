@@ -24,6 +24,7 @@
 */
 
 #include "util.h"
+#include "config.h"
 
 /*
    convert an IP address to a field of bytes
