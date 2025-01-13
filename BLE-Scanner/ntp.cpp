@@ -21,9 +21,12 @@
   You should have received a copy of the GNU General Public License
   along with BLE-Scanner.  If not, see <https://www.gnu.org/licenses/>.
 
+
+  see https://tools.ietf.org/rfc/rfc5905 for the NTP protocol reference.
 */
 
 #include "config.h"
+#include "wifi.h"
 #include "ntp.h"
 #include "util.h"
 
@@ -32,20 +35,6 @@
 */
 static CONFIG_NTP_T _config_ntp;
 
-/*
-**  local port to listen for UDP packets
-*/
-#define NTP_UDP_LOCAL_PORT 8888
-
-/*
-**  global port to receive the UDP packets from
-*/
-#define NTP_UDP_PORT 123
-
-/*
-**  NTP time sync interval
-*/
-#define NTP_SYNC_INTERVAL  (60 * 5)
 
 /*
 **  NTP time stamp is in the first 48 bytes of the message
@@ -62,8 +51,21 @@ static byte _packetBuffer[NTP_PACKET_SIZE];
 */
 static String _ntp_server = "";
 static IPAddress _ntp_ip(0, 0, 0, 0);
-static int _ntp_sync_cycle = 0;
-static time_t _up_since = 0;
+static unsigned long _first_sync = 0;
+static unsigned long _last_sync = 0;
+static unsigned long _last_request = 0;
+static long _last_correction = 0;
+
+/*
+    some NTP statistics
+*/
+static int _ntp_requests = 0;
+static int _ntp_replies_total = 0;
+static int _ntp_replies_good = 0;
+
+#ifdef DBG_NTP
+static bool _ntp_received = false;
+#endif
 
 /*
 **  UDP instance to let us send and receive packets
@@ -77,21 +79,31 @@ static WiFiUDP _Udp;
 */
 static void NtpSendRequest(void)
 {
-  memset(_packetBuffer, 0, NTP_PACKET_SIZE);
+  if (!_last_request || (millis() - _last_request > NTP_SYNC_INTERVAL * 1000) || millis() < _last_request) {
+    _last_request = millis();
+#if DBG_NTP
+    _ntp_received = false;
+#endif
+    memset(_packetBuffer, 0, NTP_PACKET_SIZE);
 
-  _packetBuffer[0] = 0b11100011;   // LI, Version, Mode
-  _packetBuffer[1] = 0;     // Stratum, or type of clock
-  _packetBuffer[2] = 6;     // Polling Interval
-  _packetBuffer[3] = 0xEC;  // Peer Clock Precision
-  // 8 bytes of zero for Root Delay & Root Dispersion
-  _packetBuffer[12]  = 49;
-  _packetBuffer[13]  = 0x4E;
-  _packetBuffer[14]  = 49;
-  _packetBuffer[15]  = 52;
+    _packetBuffer[0] = 0b11100011;// LI=3 (clock unsynchronized, 2 bit), Version=4 (3 bit), Mode=3 (=client, 3 bit)
+    _packetBuffer[1] = 0;         // Stratum, or type of clock
+    _packetBuffer[2] = NTP_POLL;  // Polling Interval
+    _packetBuffer[3] = 0xec;      // Peer Clock Precision=-20 (2 ^ -20 = ~ 1 microsecond)
+    // 8 bytes of zero for Root Delay & Root Dispersion
+    _packetBuffer[12]  = '1';
+    _packetBuffer[13]  = 'N';
+    _packetBuffer[14]  = '1';
+    _packetBuffer[15]  = '4';
 
-  _Udp.beginPacket(_ntp_ip, NTP_UDP_PORT);
-  _Udp.write(_packetBuffer, NTP_PACKET_SIZE);
-  _Udp.endPacket();
+    _Udp.begin(NTP_UDP_LOCAL_PORT);
+
+    _Udp.beginPacket(_ntp_ip, NTP_UDP_PORT);
+    _Udp.write(_packetBuffer, NTP_PACKET_SIZE);
+    _Udp.endPacket();
+
+    _ntp_requests++;
+  }
 }
 
 /*
@@ -102,23 +114,54 @@ static void NtpSendRequest(void)
 static time_t NtpReceiveReply(void)
 {
   /*
-  **    read the packet
+  **  read the packet
   */
   _Udp.read(_packetBuffer, NTP_PACKET_SIZE);
+  _ntp_replies_total++;
 
   /*
-     NTP time is in seconds since Jan 1 1900
+  **  if the stratum field is 0, the answer is not what we expect
+  */
+  if (_packetBuffer[1] == 0)     // Stratum, or type of clock
+    return 0;
+
+  /*
+  **  NTP time is in seconds since Jan 1 1900
   */
   unsigned long highWord = word(_packetBuffer[40], _packetBuffer[41]);
   unsigned long lowWord = word(_packetBuffer[42], _packetBuffer[43]);
-  // combine the four bytes (two words) into a long integer
-  // this is NTP time (seconds since Jan 1 1900):
   unsigned long ntpTime = highWord << 16 | lowWord;
-  // now convert NTP time into UNIX time (seconds since Jan 1 1970)
+
+  if (!ntpTime)
+    return 0;
+
+  /*
+  **  now convert NTP time into UNIX time (seconds since Jan 1 1970)
+  **
+  **  the offset is 70 y * ~365.242857142 d * 24 h * 60 m * 60 s
+  */
   ntpTime -= 2208988800UL;
-  //DbgMsg("NTP: time received: %lu", ntpTime);
-  if (!_up_since)
-    _up_since = ntpTime;
+
+  /*
+  **  we only accecpt the time, when the delta is below our limit
+  */
+  long delta = ntpTime - now();
+  if (_first_sync) {
+    /*
+    **  this is an update, so drift the time
+    */
+    ntpTime = now() + ((delta < 0) ? -1 : 1) * min((long) NTP_MAX_DRIFT,labs(delta));
+  }
+  else
+    _first_sync = ntpTime;
+  _last_sync = ntpTime;
+  _last_correction = ntpTime - now();
+  _ntp_replies_good++;
+
+#if DBG_NTP
+  _ntp_received = true;
+#endif
+
   return ntpTime;
 }
 
@@ -140,18 +183,6 @@ static time_t NtpSync(void)
     delay(10);
   }
   return 0;
-}
-
-/*
-   initialize ntp
-*/
-static void NtpInit()
-{
-  if (_ntp_ip[0]) {
-    _Udp.begin(NTP_UDP_LOCAL_PORT);
-    setSyncInterval((unsigned int) NTP_SYNC_INTERVAL);
-    setSyncProvider(NtpSync);
-  }
 }
 
 /*
@@ -177,24 +208,23 @@ void NtpSetup(void)
   */
   if (WiFi.hostByName(_config_ntp.server, _ntp_ip)) {
     /*
-       we could resolve the ntp name, so store it in the flash
+       we could resolve the ntp name
     */
 #if DBG_NTP
     DbgMsg("NTP: lookup of %s successful: %s", _config_ntp.server, IPAddressToString(_ntp_ip).c_str());
 #endif
+
+    /*
+        configure the cyclic update via the Time library
+    */
+    setSyncInterval((unsigned int) NTP_SYNC_INTERVAL);
+    setSyncProvider(NtpSync);
   }
+#if DBG_NTP
   else {
-#if DBG_NTP
     DbgMsg("NTP: lookup of %s failed", _config_ntp.server);
-#endif
-    return;
   }
-
-#if DBG_NTP
-  DbgMsg("NTP: ip=%s", IPAddressToString(_ntp_ip).c_str());
 #endif
-
-  NtpInit();
 }
 
 /*
@@ -205,24 +235,102 @@ void NtpUpdate(void)
   if (StateCheck(STATE_CONFIGURING))
     return;
 
-  if (++_ntp_sync_cycle >= NTPSYNC_CYCLES && timeStatus() != timeSet) {
-    _ntp_sync_cycle = 0;
-    NtpInit();
+#if DBG_NTP
+  static unsigned long _last_stats = 0;
+  
+  if (millis() - _last_stats > NTP_SYNC_INTERVAL / 2 * 1000 || millis() < _last_stats) {
+    /*
+        print some stats
+    */
+    _last_stats = millis();
+    DbgMsg("NTP: stats: requests=%d  replies=%d  good replies=%d",_ntp_requests,_ntp_replies_total,_ntp_replies_good);
   }
+  
+  if (_ntp_received) {
+    /*
+    **  this section help to debug the incoming NTP packets
+    **  as inside the receiver function the DbgMsg or LogMsg calls
+    **  are not possible. Instead we use the flag _ntp_receive
+    **  whenever the received packet is valid
+    */
+    dump("NTP: packet received",(const void *) &_packetBuffer[0],NTP_PACKET_SIZE);
+
+    /*
+    **  NTP time is in seconds since Jan 1 1900
+    */
+    unsigned long highWord = word(_packetBuffer[40], _packetBuffer[41]);
+    unsigned long lowWord = word(_packetBuffer[42], _packetBuffer[43]);
+    unsigned long ntpTime = highWord << 16 | lowWord;
+    DbgMsg("NTP: packet received: highword=%lu  lowWord=%lu  ntpTime=%lu",highWord,lowWord,ntpTime);
+
+    if (ntpTime) {
+      /*
+      **  now convert NTP time into UNIX time (seconds since Jan 1 1970)
+      **
+      **  the offset is 70 y * ~365.242857142 d * 24 h * 60 m * 60 s
+      */
+      ntpTime -= 2208988800UL;
+      DbgMsg("NTP: packet received: ntpTime=%lu  now=%lu",ntpTime,now());
+
+      /*
+      **  we only accecpt the time, when the delta is below our limit
+      */
+      long delta = ntpTime - now();
+      if (_first_sync) {
+        /*
+        **  this is an update, so drift the time
+        */
+        ntpTime = now() + ((delta < 0) ? -1 : 1) * min((long) NTP_MAX_DRIFT,labs(delta));
+        DbgMsg("NTP: packet received: delta=%ld  _first_sync=%lu => ntpTime=%lu", delta,_first_sync,ntpTime);
+      }
+      DbgMsg("NTP: packet received: last_correction=%ld",_last_correction);
+    }
+    _ntp_received = false;
+  }
+#endif
 }
 
 /*
    get the uptime
 */
-time_t NtpUptime(void)
+unsigned long NtpUptime(void)
 {
-  return now() - _up_since;
+  return now() - _first_sync;
 }
 
 /*
    get the frist received timestamp
 */
-time_t NtpUpSince(void)
+time_t NtpFirstSync(void)
 {
-  return _up_since;
+  return _first_sync;
+}
+
+/*
+   get the last received timestamp
+*/
+time_t NtpLastSync(void)
+{
+  return _last_sync;
+}
+
+/*
+   get the last delta between the ntp and our localtime
+*/
+long NtpLastCorrection(void)
+{
+  return _last_correction;
+}
+
+/*
+   get some stats
+*/
+void NtpStats(int *requests,int *replies_total,int *replies_good)
+{
+  if (requests)
+    *requests = _ntp_requests;
+  if (replies_total)
+    *replies_total = _ntp_replies_total;
+  if (replies_good)
+    *replies_good = _ntp_replies_good;
 }/**/
