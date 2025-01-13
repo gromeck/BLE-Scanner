@@ -96,6 +96,13 @@ typedef struct _scandev_device {
 */
 bool ScanDevAdd(const BLEAddress addr, const char *name, const uint16_t manufacturer_id, const int rssi, const bool has_battery);
 
+#if DBG
+/*
+   add a device to the device list
+*/
+bool ScanDevToggle(BLEAddress addr);
+#endif
+
 /*
    return the BLE scan list as HTML
 

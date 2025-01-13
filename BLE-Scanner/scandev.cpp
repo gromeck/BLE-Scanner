@@ -206,6 +206,33 @@ bool ScanDevAdd(BLEAddress addr, const char *name, const uint16_t manufacturer_i
   return (device) ? true : false;
 }
 
+#if DBG
+/*
+   add a device to the device list
+*/
+bool ScanDevToggle(BLEAddress addr)
+{
+  SCANDEV_T *device;
+
+  /*
+     scan our list to check if this device is already known
+  */
+  DBG_SCANDEVLIST("searching");
+  for (device = _scandev_first; device; device = device->next) {
+    if (device->addr == addr) {
+      /*
+         toggle the device state
+      */
+      device->present = !device->present;
+      device->publish_presence = true;
+      device->publish = true;
+      return true;
+    }
+  }
+  return false;
+}
+#endif
+
 /*
    check the battery level
 */
@@ -284,9 +311,14 @@ static void ScanDevPublishMQTT(SCANDEV_T *device, bool all)
     }
     if ((all || device->publish_presence || json.length() > 0) && (device->present || _config.mqtt.publish_absence)) {
       /*
-         whenever we publish something, we will also publish the state
+         whenever we publish something, we will also publish the presence state
       */
-      json = "\"state\":\"" + String((device->present) ? "present" : "absent") + "\"," + json;
+      String presence = "\"presence\":\"" + String((device->present) ? "present" : "absent") + "\"";
+
+      if (json.length() > 0)
+        json = presence + "," + json;
+      else
+        json = presence;
       device->publish_presence = false;
     }
     if (json.length() > 0)
@@ -317,6 +349,10 @@ void ScanDevListHTML(void (*callback)(const String& content))
               "<th>RSSI [dbm]</th>"
               "<th>Distance [m]</th>"
               "<th>Last Seen</th>"
+#if DBG
+              "<th>Last Seen</th>"
+#endif
+
               "<th>Battery [%]</th>"
               "</tr>");
 
@@ -326,7 +362,15 @@ void ScanDevListHTML(void (*callback)(const String& content))
          setup the list as HTML
       */
       (*callback)("<tr>"
-                  "<td>" + String(device->present ? "✅" : "❌") + "</td>"
+                  "<td>"
+#if DBG
+                  "<a href=\"?toggle=1&addr=" + String(device->addr.toString().c_str()) + "\">"
+#endif
+                  + String(device->present ? "✅" : "❌") +
+#if DBG
+                  "</a>"
+#endif
+                  "</td>"
                   "<td>" + String(device->addr.toString().c_str()) + "</td>"
                   "<td>" + String((device->name[0]) ? device->name : "-") + "</td>"
                   "<td>" + String((device->manufacturer_id != BLE_MANUFACTURER_ID_UNKNOWN) ? BLEManufacturerIdHex(device->manufacturer_id) : "-") + "</td>"
@@ -334,6 +378,9 @@ void ScanDevListHTML(void (*callback)(const String& content))
                   "<td>" + String(device->rssi) + "</td>"
                   "<td>" + String(RSSI2METER(device->rssi)) + "</td>"
                   "<td>" + String(TimeToString(device->last_seen)) + "</td>"
+#if DBG
+                  "<td>" + device->last_seen + "</td>"
+#endif
                   "<td>" + ((device->has_battery) ? String(device->battery_level) : String("-")) + "</td>"
                   "</tr>");
     }
