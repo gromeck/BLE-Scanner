@@ -31,9 +31,33 @@
 #include "util.h"
 
 /*
-**  ntp sync cycle
+**  local port to listen for UDP packets
 */
-#define NTPSYNC_CYCLES 100
+#define NTP_UDP_LOCAL_PORT 8888
+
+/*
+**  global port to receive the UDP packets from
+*/
+#define NTP_UDP_PORT 123
+
+/*
+**  NTP retry interval if failed
+*/
+#define NTP_RETRY_INTERVAL  5
+
+/*
+**  NTP drift maximum
+*/
+#define NTP_MAX_DRIFT       10
+
+/*
+**  NTP time sync interval
+**
+**  the poll intervall is typically 2^6 (= 64 s = ~1 min) to 2^10 (= 1014 s = ~17 min) senconds
+*/
+#define NTP_POLL            (DBG_NTP ? 6 : 10)
+#define NTP_SYNC_INTERVAL   (1 << (NTP_POLL))
+
 
 /*
 **  init the NTP functions
@@ -51,14 +75,29 @@ void NtpUpdate(void);
 time_t NtpGetTime(void);
 
 /*
-   get the uptime
+   get the uptime in seconds since first ntp received
 */
-time_t NtpUptime(void);
+unsigned long NtpUptime(void);
 
 /*
    get the frist received timestamp
 */
-time_t NtpUpSince(void);
+time_t NtpFirstSync(void);
+
+/*
+   get the last received timestamp
+*/
+time_t NtpLastSync(void);
+
+/*
+   get the last correction in seconds
+*/
+long NtpLastCorrection(void);
+
+/*
+   get some stats
+*/
+void NtpStats(int *requests,int *replies_total,int *replies_good);
 
 #endif
 
