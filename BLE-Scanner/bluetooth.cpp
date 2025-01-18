@@ -184,7 +184,7 @@ bool BluetoothScanStop(void)
 class BLEScannerClientCallbacks : public NimBLEClientCallbacks {
     void onConnect(NimBLEClient *client) {
     }
-    void onDisconnect(NimBLEClient* pclient) {
+    void onDisconnect(NimBLEClient* pclient, int reason) {
     }
 };
 
