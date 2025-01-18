@@ -539,7 +539,7 @@ void HttpSetup(void)
                     "<td>" + String(TimeToString(now())) + "</td>"
                     "</tr>"
                     "<tr>"
-                    "<td>First Sync (uptime)</td>"
+                    "<td>Up since Sync</td>"
                      "<td>" + String(TimeToString(NtpFirstSync())) + "</td>"
                     "</tr>"
                     "<tr>"
@@ -551,11 +551,11 @@ void HttpSetup(void)
                     "<td>Last correction</td>"
                     "<td>" + String(NtpLastCorrection()) + " s</td>"
                     "</tr>"
-#endif
                     "<tr>"
                     "<td>Requests/Replies/Good Replies</td>"
                     "<td>" + String(ntp_requests) + "/" + String(ntp_replies_total) + "/" + String(ntp_replies_good) + "</td>"
                     "</tr>"
+#endif
 
                     "<tr><th colspan=2>MQTT</th></tr>"
                     "<tr>"
