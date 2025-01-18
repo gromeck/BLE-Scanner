@@ -63,7 +63,7 @@ static int _ntp_requests = 0;
 static int _ntp_replies_total = 0;
 static int _ntp_replies_good = 0;
 
-#ifdef DBG_NTP
+#if DBG_NTP
 static bool _ntp_received = false;
 #endif
 
