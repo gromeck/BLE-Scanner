@@ -27,5 +27,5 @@ cat $ARDUINO_PLATTFORM_LOCAL
 
 find ~/.arduino*/packages/*/hardware/*/*/ -maxdepth 0 -type d | while read HWDIR; do
 	echo "Symlinking $ARDUINO_PLATTFORM_LOCAL to $HWDIR"
-	ln -s $ARDUINO_PLATTFORM_LOCAL $HWDIR
+	ln -s --force $ARDUINO_PLATTFORM_LOCAL $HWDIR
 done
